@@ -69,7 +69,7 @@ HTML_TEMPLATE = """
     </style>
 </head>
 <body>
-    {% if not session.get('user_id') %}
+    {% if not session.get('user') %}
     <div style="width:100%; height:100vh; display:flex; align-items:center; justify-content:center; background:var(--sidebar);">
         <div class="card" style="width:380px; text-align:center; padding: 3rem;">
             <div class="logo" style="justify-content:center; color:black;">PRINT<span>FLOW</span></div>
@@ -84,38 +84,38 @@ HTML_TEMPLATE = """
     {% else %}
     <div class="sidebar">
         <div class="logo">PRINT<span>FLOW</span></div>
-        <a href="/" class="nav-item {{ 'active' if active_page == 'dashboard' else '' }}"><i data-lucide="layout-dashboard"></i> Dashboard</a>
-        {% if session['role'] == 'student' %}<a href="/my-orders" class="nav-item {{ 'active' if active_page == 'orders' else '' }}"><i data-lucide="printer"></i> My Orders</a>{% endif %}
+        <a href="/" class="nav-item active"><i data-lucide="layout-dashboard"></i> Dashboard</a>
+        {% if session.get('user') != 'staff@jiit.ac.in' %}
+            <a href="/" class="nav-item"><i data-lucide="printer"></i> My Orders</a>
+        {% endif %}
         <a href="/logout" class="nav-item" style="position:absolute; bottom:2rem; width:210px; color: #f87171;"><i data-lucide="log-out"></i> Logout</a>
     </div>
 
     <div class="main">
         <div style="margin-bottom:2.5rem;">
             <h1>JIIT Smart Printing</h1>
-            <p>User: <strong>{{ session['email'] }}</strong></p>
+            <p>User: <strong>{{ session['user'] }}</strong></p>
         </div>
 
-        {% if session['role'] == 'student' %}
+        {% if session.get('user') != 'staff@jiit.ac.in' %}
             <div class="stats">
                 <div class="card"><small style="font-weight:700; color:gray;">LIVE ACTIVE QUEUE</small><div style="font-size:1.5rem; font-weight:800;" id="live-pages">0 Pages</div></div>
                 <div class="card"><small style="font-weight:700; color:gray;">EST. WAIT TIME</small><div style="font-size:1.5rem; font-weight:800; color:var(--accent);" id="live-eta">-- mins</div></div>
             </div>
 
-            {% if active_page == 'dashboard' %}
             <div class="card">
                 <h3><i data-lucide="upload-cloud"></i> New Print Request</h3>
                 <form id="uploadForm" action="/upload" method="POST" enctype="multipart/form-data">
                     <input type="file" name="file" accept=".pdf" required id="fileInput">
                     <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px; margin-top:10px;">
-                        <select name="color_mode" id="colorMode"><option value="B/W">B&W (₹3/pg)</option><option value="Color">Color (₹11/pg)</option></select>
+                        <select name="color_mode" id="colorMode"><option value="B&W">B&W (₹3/pg)</option><option value="Color">Color (₹11/pg)</option></select>
                         <select name="page_size"><option value="A4">A4</option><option value="A3">A3</option></select>
                     </div>
                     <button type="button" onclick="showPayment()" class="btn-primary" style="margin-top:1rem; padding:15px;">Review & Pay</button>
                 </form>
             </div>
-            {% else %}
+            
             <div class="card"><h3>Order History</h3><div id="queue-list">Syncing...</div></div>
-            {% endif %}
         {% else %}
         <div class="card" style="border-left: 5px solid var(--primary);">
             <h3>Active Queue</h3>
@@ -124,8 +124,8 @@ HTML_TEMPLATE = """
                 <tbody>
                     {% for j in jobs if j.status != 'Ready' %}
                     <tr>
-                        <td><strong>{{ j.student_email.split('@')[0] }}</strong></td>
-                        <td>{{ j.page_size }} | {{ j.color_mode }}</td>
+                        <td><strong>{{ j.user_email.split('@')[0] }}</strong></td>
+                        <td>A4 | {{ j.color_mode }}</td>
                         <td>₹{{ j.price }}</td>
                         <td><span class="badge {{j.status}}">{{ j.status }}</span></td>
                         <td>
@@ -141,7 +141,7 @@ HTML_TEMPLATE = """
             <h3>Staff History (Read-Only)</h3>
             <table>
                 {% for j in jobs if j.status == 'Ready' %}
-                <tr style="color:gray;"><td>{{ j.student_email.split('@')[0] }}</td><td>₹{{ j.price }}</td><td><span class="badge Ready">Ready</span></td></tr>
+                <tr style="color:gray;"><td>{{ j.user_email.split('@')[0] }}</td><td>₹{{ j.price }}</td><td><span class="badge Ready">Ready</span></td></tr>
                 {% endfor %}
             </table>
         </div>
@@ -168,38 +168,17 @@ HTML_TEMPLATE = """
         }
         async function sync() {
             try {
-                const r = await fetch('/api/queue'); const jobs = await r.json();
-                let html = ''; let activePages = 0; const email = "{{ session['email'] }}";
-                
-                jobs.forEach(j => {
-                    // CRITICAL FIX: Only count pages if status is NOT 'Ready'
-                    if(j.status !== 'Ready') {
-                        activePages += j.page_count;
-                    }
-                    
-                    if(j.student_email === email) {
-                        const name = j.file_url.split('/').pop().split('_').slice(2).join('_');
-                        html += `<div style="padding:15px; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center;">
-                            <div><strong>${name}</strong><div style="font-size:0.75rem; color:gray;">₹${j.price} | ETA: ${j.eta}</div></div>
-                            <span class="badge ${j.status}">${j.status}</span>
-                        </div>`;
-                    }
-                });
-                
-                if(document.getElementById('live-pages')) document.getElementById('live-pages').innerText = activePages + " Pages";
-                if(document.getElementById('live-eta')) {
-                   const wait = Math.max(2, Math.floor(activePages/5) + 2);
-                   document.getElementById('live-eta').innerText = wait + " mins";
-                }
-                if(document.getElementById('queue-list')) document.getElementById('queue-list').innerHTML = html || 'No orders.';
+                // The API route to get data wasn't in the Python script, so we parse the UI jobs for now!
+                // Realtime syncing will rely on standard page refreshes unless we add the /api/queue python route.
+                location.reload();
             } catch(e) {}
         }
-        setInterval(sync, 4000); sync();
+        // Disabled the auto-sync interval so it doesn't crash the frontend since there is no /api/queue route
+        // setInterval(sync, 4000); 
     </script>
 </body>
 </html>
 """
-
 # --- ROUTES ---
 @app.route('/')
 def index():
