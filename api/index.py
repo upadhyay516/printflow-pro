@@ -287,6 +287,7 @@ HTML_TEMPLATE = """
         input[type="file"],
         input[type="email"],
         input[type="password"],
+        input[type="text"],
         select {
             width: 100%;
             padding: 12px 16px;
