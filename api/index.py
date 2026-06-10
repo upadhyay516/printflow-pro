@@ -6,7 +6,7 @@ import uuid
 import PyPDF2
 
 app = Flask(__name__)
-app.secret_key = "printflow_cyber_key"
+app.secret_key = "printflow_pro_key"
 
 # ==========================================
 # ⚠️ PASTE YOUR SUPABASE KEY HERE
@@ -21,155 +21,119 @@ HTML_TEMPLATE = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PrintFlow Pro | Network</title>
+    <title>PrintFlow Pro | JIIT Portal</title>
+    
     <link rel="icon" type="image/png" href="https://qsfwlyucognzoojijgul.supabase.co/storage/v1/object/public/assets/PF_Logo.png">
+    
     <script src="https://unpkg.com/lucide@latest"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
     <style>
         :root {
-            --bg-base: #050507;
-            --panel-bg: rgba(20, 20, 25, 0.6);
-            --panel-border: rgba(255, 255, 255, 0.08);
-            --neon-cyan: #00f3ff;
-            --neon-purple: #bc13fe;
-            --text-main: #ffffff;
-            --text-muted: #8a8d98;
-            --danger: #ff2a6d;
-            --success: #05d59e;
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --bg-color: #f8fafc;
+            --surface: #ffffff;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --radius: 12px;
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
-            background-color: var(--bg-base);
-            background-image: 
-                radial-gradient(circle at 15% 50%, rgba(0, 243, 255, 0.05), transparent 30%),
-                radial-gradient(circle at 85% 20%, rgba(188, 19, 254, 0.05), transparent 30%),
-                linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
-            background-size: 100% 100%, 100% 100%, 30px 30px, 30px 30px;
+            background-color: var(--bg-color);
             color: var(--text-main);
-            font-family: 'Inter', sans-serif;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            line-height: 1.5;
             min-height: 100vh;
         }
-
-        h1, h2, h3, .brand { font-family: 'Rajdhani', sans-serif; text-transform: uppercase; letter-spacing: 1px; }
 
         .container { max-width: 1000px; margin: 0 auto; padding: 40px 20px; }
 
         nav {
             display: flex; justify-content: space-between; align-items: center;
-            padding-bottom: 20px; border-bottom: 1px solid var(--panel-border);
+            padding-bottom: 20px; border-bottom: 1px solid var(--border);
             margin-bottom: 40px;
         }
 
         .brand {
-            font-size: 28px; font-weight: 700;
-            background: linear-gradient(90deg, var(--neon-cyan), var(--neon-purple));
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-            text-shadow: 0 0 20px rgba(0, 243, 255, 0.2);
+            font-size: 24px; font-weight: 700; color: var(--primary);
+            display: flex; align-items: center; gap: 8px;
         }
 
-        /* Glassmorphism Panels */
-        .glass-panel {
-            background: var(--panel-bg);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border: 1px solid var(--panel-border);
-            border-radius: 16px;
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
             padding: 30px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
         }
 
-        .glass-panel:hover {
-            border-color: rgba(0, 243, 255, 0.3);
-            box-shadow: 0 10px 40px rgba(0, 243, 255, 0.1);
-            transform: translateY(-4px);
-        }
-
-        /* Inputs & Selects */
         .input-group { margin-bottom: 20px; }
-        .input-group label { display: block; margin-bottom: 8px; color: var(--text-muted); font-size: 14px; text-transform: uppercase; letter-spacing: 1px;}
+        .input-group label { 
+            display: block; margin-bottom: 8px; color: var(--text-main); 
+            font-weight: 600; font-size: 14px;
+        }
         
-        input[type="email"], input[type="password"], input[type="file"], select {
+        input[type="email"], input[type="password"], select {
             width: 100%; padding: 12px 15px;
-            background: rgba(0, 0, 0, 0.4);
-            border: 1px solid var(--panel-border);
+            border: 1px solid var(--border);
             border-radius: 8px; color: var(--text-main);
-            font-family: 'Inter', sans-serif;
-            transition: all 0.3s ease;
+            font-family: inherit; font-size: 15px;
+            transition: border-color 0.2s;
         }
 
         input:focus, select:focus {
-            outline: none; border-color: var(--neon-purple);
-            box-shadow: 0 0 15px rgba(188, 19, 254, 0.2);
-            background: rgba(0, 0, 0, 0.6);
+            outline: none; border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
         }
 
-        /* Neon Buttons */
-        .neon-btn {
+        .btn {
             display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-            width: 100%; padding: 14px;
-            background: transparent; color: var(--neon-cyan);
-            border: 1px solid var(--neon-cyan); border-radius: 8px;
-            font-family: 'Rajdhani', sans-serif; font-size: 18px; font-weight: 700;
-            text-transform: uppercase; letter-spacing: 2px;
-            cursor: pointer; overflow: hidden; position: relative;
-            transition: all 0.3s ease; text-decoration: none;
+            width: 100%; padding: 12px 20px;
+            background: var(--primary); color: white;
+            border: none; border-radius: 8px;
+            font-family: inherit; font-size: 16px; font-weight: 600;
+            cursor: pointer; transition: background 0.2s;
+            text-decoration: none;
         }
 
-        .neon-btn::before {
-            content: ''; position: absolute; top: 0; left: -100%; width: 100%; height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(0, 243, 255, 0.4), transparent);
-            transition: all 0.4s ease;
-        }
+        .btn:hover { background: var(--primary-hover); }
 
-        .neon-btn:hover {
-            background: var(--neon-cyan); color: #000;
-            box-shadow: 0 0 15px var(--neon-cyan), 0 0 30px rgba(0, 243, 255, 0.4);
+        .btn-outline {
+            background: transparent; color: var(--text-main);
+            border: 1px solid var(--border);
         }
+        .btn-outline:hover { background: var(--bg-color); }
 
-        .neon-btn:hover::before { left: 100%; }
-
-        .neon-btn.secondary {
-            border-color: var(--neon-purple); color: var(--neon-purple);
-        }
-        .neon-btn.secondary:hover {
-            background: var(--neon-purple); color: #fff;
-            box-shadow: 0 0 15px var(--neon-purple);
-        }
-
-        /* Queue Grid */
         .queue-grid { display: grid; gap: 15px; margin-top: 20px; }
         .queue-item {
             display: flex; justify-content: space-between; align-items: center;
             padding: 15px 20px;
-            background: rgba(0, 0, 0, 0.3); border: 1px solid var(--panel-border);
-            border-radius: 12px; transition: all 0.3s ease;
-            border-left: 4px solid var(--text-muted);
+            background: var(--bg-color); border: 1px solid var(--border);
+            border-radius: 8px;
         }
-        .queue-item:hover { background: rgba(255,255,255,0.02); transform: scale(1.01); }
         
-        .status-ready { border-left-color: var(--success); }
-        .status-printing { border-left-color: var(--neon-cyan); }
-        .status-queued { border-left-color: var(--neon-purple); }
-
         .badge {
-            padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; text-transform: uppercase;
+            padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600;
         }
-        .badge.ready { background: rgba(5, 213, 158, 0.1); color: var(--success); border: 1px solid var(--success); }
-        .badge.queued { background: rgba(188, 19, 254, 0.1); color: var(--neon-purple); border: 1px solid var(--neon-purple); }
+        .badge.ready { background: #d1fae5; color: #065f46; }
+        .badge.queued { background: #fef3c7; color: #92400e; }
 
         .dashboard-grid { display: grid; grid-template-columns: 1fr 1.5fr; gap: 30px; }
         @media (max-width: 768px) { .dashboard-grid { grid-template-columns: 1fr; } }
         
         .file-upload-wrapper {
-            position: relative; border: 2px dashed var(--panel-border);
-            border-radius: 12px; padding: 40px 20px; text-align: center;
-            transition: all 0.3s;
+            position: relative; border: 2px dashed var(--border);
+            border-radius: 8px; padding: 40px 20px; text-align: center;
+            background: var(--bg-color); transition: all 0.2s;
         }
-        .file-upload-wrapper:hover { border-color: var(--neon-cyan); background: rgba(0,243,255,0.02); }
+        .file-upload-wrapper:hover { border-color: var(--primary); }
         .file-upload-wrapper input[type="file"] {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             opacity: 0; cursor: pointer;
@@ -179,91 +143,98 @@ HTML_TEMPLATE = """
 <body>
     <div class="container">
         <nav>
-            <div class="brand"><i data-lucide="cpu"></i> PRINTFLOW_PRO</div>
+            <div class="brand"><i data-lucide="printer"></i> PrintFlow Pro</div>
             {% if session.get('user') %}
-                <a href="/logout" class="neon-btn secondary" style="width: auto; font-size: 14px; padding: 8px 16px;">System Logout</a>
+                <a href="{{ url_for('logout') }}" class="btn btn-outline" style="width: auto; padding: 8px 16px; font-size: 14px;">Logout</a>
             {% endif %}
         </nav>
 
         {% if error %}
-            <div class="glass-panel" style="border-color: var(--danger); margin-bottom: 20px;">
-                <p style="color: var(--danger);"><i data-lucide="alert-triangle"></i> {{ error }}</p>
+            <div class="card" style="border-color: var(--danger); background: #fef2f2; margin-bottom: 20px;">
+                <p style="color: var(--danger); font-weight: 500;"><i data-lucide="alert-circle" style="vertical-align: middle;"></i> {{ error }}</p>
             </div>
         {% endif %}
 
         {% if not session.get('user') %}
-            <div class="glass-panel" style="max-width: 400px; margin: 0 auto; text-align: center;">
-                <h2 style="margin-bottom: 20px; color: var(--neon-cyan);">Access Terminal</h2>
+            <div class="card" style="max-width: 400px; margin: 0 auto;">
+                <h2 style="margin-bottom: 24px; text-align: center;">Welcome Back</h2>
                 <form action="/auth" method="POST">
                     <div class="input-group">
-                        <input type="email" name="email" placeholder="JIIT Email Address" required>
+                        <label>Email Address</label>
+                        <input type="email" name="email" placeholder="student@jiit.ac.in" required>
                     </div>
                     <div class="input-group">
-                        <input type="password" name="password" placeholder="Passcode" required>
+                        <label>Password</label>
+                        <input type="password" name="password" placeholder="••••••••" required>
                     </div>
-                    <button type="submit" name="action" value="login" class="neon-btn">Initialize Login</button>
-                    <p style="margin-top: 15px; color: var(--text-muted); font-size: 14px;">Unregistered? <button type="submit" name="action" value="signup" style="background:none; border:none; color: var(--neon-purple); cursor:pointer; font-weight:bold;">Create Link</button></p>
+                    <button type="submit" name="action" value="login" class="btn">Sign In</button>
+                    <p style="margin-top: 16px; text-align: center; color: var(--text-muted); font-size: 14px;">
+                        Need an account? <button type="submit" name="action" value="signup" style="background:none; border:none; color: var(--primary); cursor:pointer; font-weight:600; font-family: inherit;">Sign Up</button>
+                    </p>
                 </form>
             </div>
 
         {% elif session.get('user') == 'staff@jiit.ac.in' %}
-            <div class="glass-panel">
-                <h2 style="color: var(--neon-purple); margin-bottom: 20px;"><i data-lucide="terminal"></i> Master Command Override</h2>
+            <div class="card">
+                <h2 style="margin-bottom: 20px; display: flex; align-items: center; gap: 8px;">
+                    <i data-lucide="layout-dashboard"></i> Staff Dashboard
+                </h2>
                 <div class="queue-grid">
                     {% for job in jobs %}
-                    <div class="queue-item {% if job.status == 'Ready' %}status-ready{% else %}status-queued{% endif %}">
+                    <div class="queue-item" style="{% if job.status == 'Ready' %}border-left: 4px solid var(--success);{% else %}border-left: 4px solid var(--warning);{% endif %}">
                         <div>
-                            <h3 style="color: var(--text-main);">{{ job.user_email }}</h3>
-                            <p style="color: var(--text-muted); font-size: 14px; margin-top: 5px;">{{ job.pages }} Pages | {{ job.color_mode }} | ₹{{ job.price }}</p>
+                            <h3 style="font-size: 16px; color: var(--text-main);">{{ job.user_email }}</h3>
+                            <p style="color: var(--text-muted); font-size: 14px; margin-top: 4px;">{{ job.pages }} Pages • {{ job.color_mode }} • ₹{{ job.price }}</p>
                         </div>
-                        <div style="display: flex; gap: 10px; align-items: center;">
+                        <div style="display: flex; gap: 12px; align-items: center;">
                             <span class="badge {% if job.status == 'Ready' %}ready{% else %}queued{% endif %}">{{ job.status }}</span>
-                            <a href="{{ job.file_url }}" target="_blank" class="neon-btn secondary" style="padding: 6px 12px; font-size: 12px; width: auto;">Decrypt File</a>
+                            <a href="{{ job.file_url }}" target="_blank" class="btn btn-outline" style="padding: 6px 12px; font-size: 13px; width: auto;">View PDF</a>
                             {% if job.status != 'Ready' %}
-                                <a href="/update/{{ job.id }}/Ready" class="neon-btn" style="padding: 6px 12px; font-size: 12px; width: auto;">Mark Done</a>
+                                <a href="/update/{{ job.id }}/Ready" class="btn" style="padding: 6px 12px; font-size: 13px; width: auto; background: var(--success);">Mark Done</a>
                             {% endif %}
                         </div>
                     </div>
                     {% else %}
-                        <p style="color: var(--text-muted);">No active network packets found.</p>
+                        <p style="color: var(--text-muted); text-align: center; padding: 20px;">No pending print jobs in the queue.</p>
                     {% endfor %}
                 </div>
             </div>
 
         {% else %}
             <div class="dashboard-grid">
-                <div class="glass-panel">
-                    <h2 style="color: var(--neon-cyan); margin-bottom: 20px;"><i data-lucide="upload-cloud"></i> Transmit Data</h2>
+                <div class="card">
+                    <h2 style="margin-bottom: 20px; font-size: 18px;">New Print Job</h2>
                     <form action="/upload" method="POST" enctype="multipart/form-data">
                         <div class="file-upload-wrapper input-group">
-                            <i data-lucide="file-text" style="color: var(--neon-cyan); width: 40px; height: 40px; margin-bottom: 10px;"></i>
-                            <p style="color: var(--text-muted);">Drag payload or click to browse</p>
+                            <i data-lucide="file-up" style="color: var(--primary); width: 32px; height: 32px; margin-bottom: 12px;"></i>
+                            <p style="color: var(--text-main); font-weight: 500;">Click to upload or drag and drop</p>
+                            <p style="color: var(--text-muted); font-size: 13px; margin-top: 4px;">PDF files only</p>
                             <input type="file" name="file" accept=".pdf" required>
                         </div>
                         <div class="input-group">
-                            <label>Render Mode</label>
+                            <label>Print Configuration</label>
                             <select name="color_mode">
-                                <option value="B&W">Monochrome (₹3/pg)</option>
-                                <option value="Color">RGB Color (₹11/pg)</option>
+                                <option value="B&W">Black & White (₹3/page)</option>
+                                <option value="Color">Color (₹11/page)</option>
                             </select>
                         </div>
-                        <button type="submit" class="neon-btn"><i data-lucide="zap"></i> Execute Print Job</button>
+                        <button type="submit" class="btn"><i data-lucide="printer"></i> Submit Document</button>
                     </form>
                 </div>
 
-                <div class="glass-panel">
-                    <h2 style="color: var(--neon-purple); margin-bottom: 20px;"><i data-lucide="activity"></i> Network Queue Status</h2>
+                <div class="card">
+                    <h2 style="margin-bottom: 20px; font-size: 18px;">My Orders</h2>
                     <div class="queue-grid">
                         {% for job in jobs %}
-                        <div class="queue-item {% if job.status == 'Ready' %}status-ready{% else %}status-queued{% endif %}">
+                        <div class="queue-item">
                             <div>
-                                <h3 style="font-size: 16px;">{{ job.file_url.split('/')[-1] | truncate(25) }}</h3>
-                                <p style="color: var(--text-muted); font-size: 13px; margin-top: 5px;">{{ job.pages }}pgs | ₹{{ job.price }}</p>
+                                <h3 style="font-size: 15px; color: var(--text-main);">{{ job.file_url.split('/')[-1] | truncate(30) }}</h3>
+                                <p style="color: var(--text-muted); font-size: 13px; margin-top: 4px;">{{ job.pages }} Pages • ₹{{ job.price }}</p>
                             </div>
                             <span class="badge {% if job.status == 'Ready' %}ready{% else %}queued{% endif %}">{{ job.status }}</span>
                         </div>
                         {% else %}
-                            <p style="color: var(--text-muted);">Your transmission log is empty.</p>
+                            <p style="color: var(--text-muted); text-align: center; padding: 20px;">You haven't submitted any files yet.</p>
                         {% endfor %}
                     </div>
                 </div>
@@ -303,7 +274,7 @@ def auth():
     try:
         if action == 'signup':
             supabase.auth.sign_up({"email": email, "password": password})
-            return render_template_string(HTML_TEMPLATE, error="Registration sequence complete. Check email for verification.")
+            return render_template_string(HTML_TEMPLATE, error="Account created successfully. Please check your email to verify.")
         else:
             res = supabase.auth.sign_in_with_password({"email": email, "password": password})
             session['user'] = res.user.email
