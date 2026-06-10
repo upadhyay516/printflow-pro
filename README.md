@@ -124,7 +124,8 @@ The server starts on port `5001` with debug mode enabled.
 
 ### 6. Open in Browser
 ```
-http://127.0.0.1:5001
+[http://127.0.0.1:5001]
+(https://printflow-pro-jet.vercel.app/)
 ```
 
 ---
@@ -143,7 +144,7 @@ http://127.0.0.1:5001
 ## 🧪 Usage & Testing
 
 ### Student Account
-1. Go to `http://127.0.0.1:5001` and create a new account with any email (e.g. `student@jiit.ac.in`).
+1. Go to `(https://printflow-pro-jet.vercel.app/)` and create a new account with any email (e.g. `student@jiit.ac.in`).
 2. Upload a PDF, select color mode and page size, and confirm via the payment overlay.
 3. Watch the live queue update on the `/my-orders` page.
 
