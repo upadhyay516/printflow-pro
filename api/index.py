@@ -129,7 +129,7 @@ HTML_TEMPLATE = """
                         <td>₹{{ j.price }}</td>
                         <td><span class="badge {{j.status}}">{{ j.status }}</span></td>
                         <td>
-                            <button onclick="window.open('/view/{{ j.id }}', '_blank')" style="background:#eff6ff; color:var(--primary); padding:8px 12px; border:none; border-radius:6px; font-weight:800; cursor:pointer;">VIEW</button>
+                            <a href="/view/{{ j.id }}" target="_blank" style="background:#eff6ff; color:var(--primary); padding:8px 12px; border:none; border-radius:6px; font-weight:800; cursor:pointer; text-decoration:none;">VIEW</a>
                             <a href="/update/{{ j.id }}/Ready" style="color:green; margin-left:10px; font-weight:700; text-decoration:none;">DONE</a>
                         </td>
                     </tr>
@@ -244,9 +244,11 @@ def auth():
 def view_file(job_id):
     try:
         job = supabase.table('print_jobs').select("file_url").eq("id", job_id).single().execute()
+        if not job.data:
+            return f"<h1>No job found for ID: {job_id}</h1>", 404
         return redirect(job.data['file_url'])
     except Exception as e:
-        return f"<h1>Could not load file</h1><p>{e}</p><br><a href='/'>Go Back</a>", 500
+        return f"<h1>Error for ID [{job_id}]:</h1><p>{e}</p><br><a href='/'>Go Back</a>", 500
 
 @app.route('/upload', methods=['POST'])
 def upload():
