@@ -143,10 +143,17 @@ HTML_TEMPLATE = """
         </div>
 
         <div class="card" style="opacity: 0.8; margin-top: 2rem;">
-            <h3>Staff History (Read-Only)</h3>
+            <h3 style="display:flex; justify-content:space-between; align-items:center;">
+                Staff History
+                <a href="/clear-ready" onclick="return confirm('Clear all completed jobs?')" style="font-size:0.8rem; background:#fee2e2; color:#dc2626; padding:6px 14px; border-radius:6px; font-weight:700; text-decoration:none;">Clear All</a>
+            </h3>
             <table>
                 {% for j in jobs if j.status == 'Ready' %}
-                <tr style="color:gray;"><td>{{ j.student_email.split('@')[0] }}</td><td>₹{{ j.price }}</td><td><span class="badge Ready">Ready</span></td></tr>
+                <tr style="color:gray;">
+                    <td>{{ j.student_email.split('@')[0] }}</td>
+                    <td>₹{{ j.price }}</td>
+                    <td><span class="badge Ready">Ready</span></td>
+                </tr>
                 {% endfor %}
             </table>
         </div>
@@ -176,7 +183,7 @@ HTML_TEMPLATE = """
             try {
                 const r = await fetch('/api/queue'); const jobs = await r.json();
                 let html = ''; let activePages = 0; const email = "{{ session['email'] }}";
-                
+
                 jobs.forEach(j => {
                     if(j.status !== 'Ready') {
                         activePages += j.page_count;
@@ -189,11 +196,11 @@ HTML_TEMPLATE = """
                         </div>`;
                     }
                 });
-                
+
                 if(document.getElementById('live-pages')) document.getElementById('live-pages').innerText = activePages + " Pages";
                 if(document.getElementById('live-eta')) {
-                   const wait = Math.max(2, Math.floor(activePages/5) + 2);
-                   document.getElementById('live-eta').innerText = wait + " mins";
+                    const wait = Math.max(2, Math.floor(activePages/5) + 2);
+                    document.getElementById('live-eta').innerText = wait + " mins";
                 }
                 if(document.getElementById('queue-list')) document.getElementById('queue-list').innerHTML = html || 'No orders.';
             } catch(e) {}
@@ -294,6 +301,11 @@ def upload():
 def get_queue():
     res = supabase.table('print_jobs').select("*").execute()
     return jsonify(res.data)
+
+@app.route('/clear-ready')
+def clear_ready():
+    supabase.table('print_jobs').delete().eq("status", "Ready").execute()
+    return redirect('/')
 
 @app.route('/update/<int:job_id>/<status>')
 def update_status(job_id, status):
