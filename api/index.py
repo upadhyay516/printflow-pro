@@ -244,16 +244,8 @@ def auth():
 def view_file(job_id):
     try:
         job = supabase.table('print_jobs').select("file_url").eq("id", job_id).single().execute()
-        file_url = job.data['file_url']
-        response = requests.get(file_url, timeout=15)
-        response.raise_for_status()
-        return Response(
-            response.content,
-            mimetype='application/pdf',
-            headers={"Content-Disposition": "inline; filename=document.pdf"}
-        )
+        return redirect(job.data['file_url'])
     except Exception as e:
-        print(f"\n--- VIEW FILE ERROR ---\n{e}\n----------------------\n")
         return f"<h1>Could not load file</h1><p>{e}</p><br><a href='/'>Go Back</a>", 500
 
 @app.route('/upload', methods=['POST'])
