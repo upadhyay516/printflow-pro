@@ -275,13 +275,14 @@ def upload():
         file_url = f"{SUPABASE_URL}/storage/v1/object/public/print-files/{unique_filename}"
 
         # Save to Database
-        supabase.table('print_jobs').insert({
-            "user_email": session.get('user'),
-            "file_url": file_url,
-            "pages": num_pages,
-            "color_mode": combined_config,
-            "price": price,
-            "status": "Queued"
+      supabase.table('print_jobs').insert({
+        "student_email": session.get('user'), # If you renamed user_email
+        "file_url": file_url,
+        "page_count": num_pages,              # If you renamed pages
+        "page_size": page_size,               # If you added page_size
+        "color_mode": raw_color_mode,         # If you separated color_mode
+        "price": price,
+        "status": "Queued"
         }).execute()
 
         os.remove(temp_path)
