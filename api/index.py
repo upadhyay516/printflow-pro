@@ -302,6 +302,26 @@ HTML_TEMPLATE = """
             -webkit-appearance: none;
         }
         input:focus, select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(59,130,246,0.15); }
+
+        input:-webkit-autofill,
+        input:-webkit-autofill:hover,
+        input:-webkit-autofill:focus {
+            -webkit-box-shadow: 0 0 0px 1000px var(--bg) inset !important;
+            -webkit-text-fill-color: var(--text) !important;
+            caret-color: var(--text);
+        }
+
+        input[type="text"] {
+            background: var(--bg) !important;
+            color: var(--text) !important;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 12px 16px;
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 0.9rem;
+            outline: none;
+            width: 100%;
+        }
         input[type="file"] { cursor: pointer; color: var(--muted); }
         input[type="file"]::-webkit-file-upload-button {
             background: var(--surface2);
