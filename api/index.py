@@ -129,7 +129,7 @@ HTML_TEMPLATE = """
                         <td>₹{{ j.price }}</td>
                         <td><span class="badge {{j.status}}">{{ j.status }}</span></td>
                         <td>
-                            <button onclick="window.open('/view/{{ j.id }}', '_blank')" style="background:#eff6ff; color:var(--primary); padding:8px 12px; border:none; border-radius:6px; font-weight:800; cursor:pointer;">VIEW</button>
+                            <a href="{{ j.file_url }}" target="_blank" style="display:inline-block; background:#eff6ff; color:var(--primary); padding:8px 12px; border-radius:6px; font-weight:800; text-decoration:none; text-align:center;">VIEW</a>
                             <a href="/update/{{ j.id }}/Ready" style="color:green; margin-left:10px; font-weight:700; text-decoration:none;">DONE</a>
                         </td>
                     </tr>
@@ -196,7 +196,6 @@ HTML_TEMPLATE = """
         }
         setInterval(sync, 4000); sync();
     </script>
-    {% endif %}
 </body>
 </html>
 """
