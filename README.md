@@ -152,22 +152,3 @@ The server starts on port `5001` with debug mode enabled.
 1. Log in with email `staff@jiit.ac.in` and any password (must be registered in Supabase first).
 2. View all incoming jobs in the Active Queue table.
 3. Click **VIEW** to open the PDF in the browser, then **DONE** to mark it as Ready.
-
-### Supabase Table Schema (`print_jobs`)
-```sql
-create table print_jobs (
-  id bigint generated always as identity primary key,
-  student_email text,
-  file_url text,
-  page_count int,
-  price int,
-  color_mode text,
-  page_size text,
-  eta text,
-  status text default 'Queued',
-  created_at timestamptz default now()
-);
-```
-
-### Supabase Storage
-Create a public bucket named `print-files` in your Supabase project under **Storage**.
