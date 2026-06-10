@@ -1,20 +1,39 @@
-from flask import Flask, request, render_template_string, redirect, session, jsonify, url_for
-from supabase import create_client, Client
-import os
-import tempfile
-import uuid
-import PyPDF2
+import os, time, PyPDF2, requests, tempfile
+from flask import Flask, request, render_template_string, redirect, url_for, session, jsonify, Response
+from supabase import create_client
 
 app = Flask(__name__)
-app.secret_key = "printflow_pro_key"
+app.secret_key = "JIIT_PRINTFLOW_FINAL_ULTIMATE_V2026_FIXED"
 
-# ==========================================
-# ⚠️ PASTE YOUR SUPABASE KEY HERE
-# ==========================================
-SUPABASE_URL = "https://qsfwlyucognzoojijgul.supabase.co"
-SUPABASE_KEY = "YOUR_SUPABASE_ANON_KEY_HERE" 
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+# --- CONFIGURATION ---
+SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://qsfwlyucognzoojijgul.supabase.co")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFzZndseXVjb2duem9vamlqZ3VsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwNjUwNjgsImV4cCI6MjA5NjY0MTA2OH0.WeipU_k1_Rm6M97gC7LMsjbFspjVRDiPOnAHreeNATc")
+supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
+# --- PDF PROCESSING ENGINE ---
+def process_pdf_and_count(input_path, output_path, range_str):
+    try:
+        reader = PyPDF2.PdfReader(input_path)
+        total_pages = len(reader.pages)
+        if not range_str or range_str.lower() == 'all' or range_str.strip() == "":
+            return total_pages, input_path
+        writer = PyPDF2.PdfWriter()
+        selected_indices = []
+        parts = range_str.replace(" ", "").split(',')
+        for part in parts:
+            if '-' in part:
+                start, end = map(int, part.split('-'))
+                selected_indices.extend(range(start - 1, end))
+            else:
+                selected_indices.append(int(part) - 1)
+        for idx in sorted(list(set(selected_indices))):
+            if 0 <= idx < total_pages: writer.add_page(reader.pages[idx])
+        if len(writer.pages) == 0: return total_pages, input_path
+        with open(output_path, "wb") as f: writer.write(f)
+        return len(writer.pages), output_path
+    except: return 0, input_path
+
+# --- FULL UI TEMPLATE ---
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="en">
@@ -50,10 +69,7 @@ HTML_TEMPLATE = """
     </style>
 </head>
 <body>
-    {% set current_user = session.get('user') %}
-    {% set is_staff = (current_user == 'staff@jiit.ac.in') %}
-
-    {% if not current_user %}
+    {% if not session.get('user_id') %}
     <div style="width:100%; height:100vh; display:flex; align-items:center; justify-content:center; background:var(--sidebar);">
         <div class="card" style="width:380px; text-align:center; padding: 3rem;">
             <div class="logo" style="justify-content:center; color:black;">PRINT<span>FLOW</span></div>
@@ -69,19 +85,17 @@ HTML_TEMPLATE = """
     <div class="sidebar">
         <div class="logo">PRINT<span>FLOW</span></div>
         <a href="/" class="nav-item {{ 'active' if active_page == 'dashboard' else '' }}"><i data-lucide="layout-dashboard"></i> Dashboard</a>
-        {% if not is_staff %}
-            <a href="/my-orders" class="nav-item {{ 'active' if active_page == 'orders' else '' }}"><i data-lucide="printer"></i> My Orders</a>
-        {% endif %}
+        {% if session['role'] == 'student' %}<a href="/my-orders" class="nav-item {{ 'active' if active_page == 'orders' else '' }}"><i data-lucide="printer"></i> My Orders</a>{% endif %}
         <a href="/logout" class="nav-item" style="position:absolute; bottom:2rem; width:210px; color: #f87171;"><i data-lucide="log-out"></i> Logout</a>
     </div>
 
     <div class="main">
         <div style="margin-bottom:2.5rem;">
             <h1>JIIT Smart Printing</h1>
-            <p>User: <strong>{{ current_user }}</strong></p>
+            <p>User: <strong>{{ session['email'] }}</strong></p>
         </div>
 
-        {% if not is_staff %}
+        {% if session['role'] == 'student' %}
             <div class="stats">
                 <div class="card"><small style="font-weight:700; color:gray;">LIVE ACTIVE QUEUE</small><div style="font-size:1.5rem; font-weight:800;" id="live-pages">0 Pages</div></div>
                 <div class="card"><small style="font-weight:700; color:gray;">EST. WAIT TIME</small><div style="font-size:1.5rem; font-weight:800; color:var(--accent);" id="live-eta">-- mins</div></div>
@@ -102,22 +116,21 @@ HTML_TEMPLATE = """
             {% else %}
             <div class="card"><h3>Order History</h3><div id="queue-list">Syncing...</div></div>
             {% endif %}
-
         {% else %}
         <div class="card" style="border-left: 5px solid var(--primary);">
             <h3>Active Queue</h3>
             <table>
                 <thead><tr><th>STUDENT</th><th>CONFIG</th><th>PRICE</th><th>STATUS</th><th>ACTIONS</th></tr></thead>
                 <tbody>
-                    {% for j in jobs if j.get('status') != 'Ready' %}
+                    {% for j in jobs if j.status != 'Ready' %}
                     <tr>
-                        <td><strong>{{ j.get('user_email', '').split('@')[0] }}</strong></td>
-                        <td>{{ j.get('color_mode', 'B/W') }}</td>
-                        <td>₹{{ j.get('price', 0) }}</td>
-                        <td><span class="badge {{ j.get('status') }}">{{ j.get('status') }}</span></td>
+                        <td><strong>{{ j.student_email.split('@')[0] }}</strong></td>
+                        <td>{{ j.page_size }} | {{ j.color_mode }}</td>
+                        <td>₹{{ j.price }}</td>
+                        <td><span class="badge {{j.status}}">{{ j.status }}</span></td>
                         <td>
-                            <a href="{{ j.get('file_url', '#') }}" target="_blank" style="display:inline-block; background:#eff6ff; color:var(--primary); padding:8px 12px; border-radius:6px; font-weight:800; text-decoration:none; text-align:center;">VIEW</a>
-                            <a href="/update/{{ j.get('id') }}/Ready" style="color:green; margin-left:10px; font-weight:700; text-decoration:none;">DONE</a>
+                            <button onclick="window.open('/view/{{ j.id }}', '_blank')" style="background:#eff6ff; color:var(--primary); padding:8px 12px; border:none; border-radius:6px; font-weight:800; cursor:pointer;">VIEW</button>
+                            <a href="/update/{{ j.id }}/Ready" style="color:green; margin-left:10px; font-weight:700; text-decoration:none;">DONE</a>
                         </td>
                     </tr>
                     {% endfor %}
@@ -127,12 +140,8 @@ HTML_TEMPLATE = """
         <div class="card" style="opacity: 0.8; margin-top: 2rem;">
             <h3>Staff History (Read-Only)</h3>
             <table>
-                {% for j in jobs if j.get('status') == 'Ready' %}
-                <tr style="color:gray;">
-                    <td>{{ j.get('user_email', '').split('@')[0] }}</td>
-                    <td>₹{{ j.get('price', 0) }}</td>
-                    <td><span class="badge Ready">Ready</span></td>
-                </tr>
+                {% for j in jobs if j.status == 'Ready' %}
+                <tr style="color:gray;"><td>{{ j.student_email.split('@')[0] }}</td><td>₹{{ j.price }}</td><td><span class="badge Ready">Ready</span></td></tr>
                 {% endfor %}
             </table>
         </div>
@@ -157,24 +166,21 @@ HTML_TEMPLATE = """
             document.getElementById('modalPrice').innerText = "Rate: ₹" + rate + "/pg";
             document.getElementById('pay-overlay').style.display = 'flex';
         }
-
         async function sync() {
             try {
-                const r = await fetch('/api/queue'); 
-                const jobs = await r.json();
-                let html = ''; 
-                let activePages = 0; 
-                const email = "{{ current_user }}";
+                const r = await fetch('/api/queue'); const jobs = await r.json();
+                let html = ''; let activePages = 0; const email = "{{ session['email'] }}";
                 
                 jobs.forEach(j => {
+                    // CRITICAL FIX: Only count pages if status is NOT 'Ready'
                     if(j.status !== 'Ready') {
-                        activePages += (j.pages || 0);
+                        activePages += j.page_count;
                     }
-                    if(j.user_email === email) {
-                        const fileString = j.file_url || '';
-                        const name = fileString.split('/').pop().split('_').slice(1).join('_') || 'Document.pdf';
+                    
+                    if(j.student_email === email) {
+                        const name = j.file_url.split('/').pop().split('_').slice(2).join('_');
                         html += `<div style="padding:15px; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center;">
-                            <div><strong>${name}</strong><div style="font-size:0.75rem; color:gray;">₹${j.price} | Pages: ${j.pages}</div></div>
+                            <div><strong>${name}</strong><div style="font-size:0.75rem; color:gray;">₹${j.price} | ETA: ${j.eta}</div></div>
                             <span class="badge ${j.status}">${j.status}</span>
                         </div>`;
                     }
@@ -185,140 +191,110 @@ HTML_TEMPLATE = """
                    const wait = Math.max(2, Math.floor(activePages/5) + 2);
                    document.getElementById('live-eta').innerText = wait + " mins";
                 }
-                if(document.getElementById('queue-list')) document.getElementById('queue-list').innerHTML = html || 'No orders found.';
-            } catch(e) {
-                console.log("Sync error", e);
-            }
+                if(document.getElementById('queue-list')) document.getElementById('queue-list').innerHTML = html || 'No orders.';
+            } catch(e) {}
         }
-        
-        {% if not is_staff %}
-            setInterval(sync, 4000); 
-            sync();
-        {% endif %}
+        setInterval(sync, 4000); sync();
     </script>
     {% endif %}
 </body>
 </html>
 """
 
+# --- ROUTES ---
 @app.route('/')
-def home():
-    user = session.get('user')
+def index():
     jobs = []
-    
-    if user:
-        try:
-            if user == 'staff@jiit.ac.in':
-                response = supabase.table('print_jobs').select("*").order('created_at', desc=True).execute()
-            else:
-                response = supabase.table('print_jobs').select("*").eq('user_email', user).order('created_at', desc=True).execute()
-            jobs = response.data
-        except Exception as e:
-            print("DB Fetch Error:", e)
-
-    return render_template_string(HTML_TEMPLATE, jobs=jobs, active_page='dashboard')
+    if session.get('role') == 'staff':
+        jobs = supabase.table('print_jobs').select("*").order('created_at', desc=True).execute().data
+    return render_template_string(HTML_TEMPLATE, jobs=jobs, active_page="dashboard")
 
 @app.route('/my-orders')
 def my_orders():
-    user = session.get('user')
-    if not user or user == 'staff@jiit.ac.in':
-        return redirect(url_for('home'))
-    return render_template_string(HTML_TEMPLATE, jobs=[], active_page='orders')
+    return render_template_string(HTML_TEMPLATE, active_page="orders")
 
 @app.route('/auth', methods=['POST'])
 def auth():
-    email = request.form.get('email')
-    password = request.form.get('password')
-    action = request.form.get('action')
-
+    email = request.form['email'].strip().lower()
+    pwd = request.form['password']
+    action = request.form['action']
+    
     try:
-        if action == 'signup':
-            supabase.auth.sign_up({"email": email, "password": password})
-            session['user'] = email
-            return redirect(url_for('home'))
+        if action == "signup":
+            res = supabase.auth.sign_up({"email": email, "password": pwd})
         else:
-            res = supabase.auth.sign_in_with_password({"email": email, "password": password})
-            session['user'] = res.user.email
-            return redirect(url_for('home'))
+            res = supabase.auth.sign_in_with_password({"email": email, "password": pwd})
+            
+        role = 'staff' if email == 'staff@jiit.ac.in' else 'student'
+        
+        # --- NEW DEBUG LINES ---
+        print("\n--- LOGIN DEBUG INFO ---")
+        print(f"Raw Email Typed: [{email}]")
+        print(f"Role Assigned:   [{role}]")
+        print("------------------------\n")
+        
+        session.update({'user_id': str(res.user.id), 'email': email, 'role': role})
+        return redirect('/')
+        
     except Exception as e:
-        session.clear()
-        return redirect(url_for('home'))
+        print(f"SUPABASE ERROR: {e}") 
+        return f"<h1>Detailed Auth Error:</h1><p>{e}</p><br><a href='/'>Go Back</a>"
+
+@app.route('/view/<int:job_id>')
+def view_file(job_id):
+    job = supabase.table('print_jobs').select("file_url").eq("id", job_id).single().execute()
+    response = requests.get(job.data['file_url'], stream=True)
+    return Response(response.iter_content(chunk_size=1024), mimetype='application/pdf', headers={"Content-Disposition": "inline"})
 
 @app.route('/upload', methods=['POST'])
 def upload():
-    if not session.get('user'):
-        return redirect(url_for('home'))
-
-    file = request.files.get('file')
-    raw_color_mode = request.form.get('color_mode', 'B/W')
-    page_size = request.form.get('page_size', 'A4')
-    
-    if not file or file.filename == '':
-        return redirect(url_for('home'))
-
-    combined_config = f"{page_size} | {raw_color_mode}"
-
     try:
-        temp_dir = tempfile.gettempdir()
-        temp_path = os.path.join(temp_dir, file.filename)
-        file.save(temp_path)
-
-        num_pages = 1
-        try:
-            with open(temp_path, 'rb') as pdf_file:
-                pdf_reader = PyPDF2.PdfReader(pdf_file)
-                num_pages = len(pdf_reader.pages)
-        except Exception:
-            pass 
-
-        rate = 11 if raw_color_mode == 'Color' else 3
-        price = num_pages * rate
-
-        unique_filename = f"{uuid.uuid4()}_{file.filename}"
-        with open(temp_path, 'rb') as f:
-            supabase.storage.from_("print-files").upload(file=f, path=unique_filename, file_options={"content-type": "application/pdf"})
+        file = request.files['file']
+        color_mode = request.form.get('color_mode', 'B/W')
+        t_stamp = int(time.time())
         
-        file_url = f"{SUPABASE_URL}/storage/v1/object/public/print-files/{unique_filename}"
-
-        # Insert to Database! Make sure these column names match what you have in Supabase!
+        # WINDOWS FIX: Use a dynamic temp folder instead of hardcoded Linux "/tmp"
+        temp_dir = tempfile.gettempdir()
+        local_path = os.path.join(temp_dir, f"{t_stamp}.pdf")
+        file.save(local_path)
+        
+        count, final_path = process_pdf_and_count(local_path, local_path, "")
+        total_price = count * (11 if color_mode == 'Color' else 3)
+        
+        active = supabase.table('print_jobs').select("page_count").neq("status", "Ready").execute()
+        total_active_pages = sum(j['page_count'] for j in active.data)
+        eta_val = max(2, (total_active_pages // 5) + 2)
+        
+        storage_name = f"pdf_{t_stamp}_{file.filename.replace(' ', '_')}"
+        with open(final_path, 'rb') as f:
+            supabase.storage.from_('print-files').upload(storage_name, f, {"content-type": "application/pdf"})
+        
+        url = supabase.storage.from_('print-files').get_public_url(storage_name)
         supabase.table('print_jobs').insert({
-            "user_email": session.get('user'),
-            "file_url": file_url,
-            "pages": num_pages,
-            "color_mode": combined_config,
-            "price": price,
-            "status": "Queued"
+            "student_email": session['email'], "file_url": url, "page_count": count,
+            "price": total_price, "color_mode": color_mode, "eta": f"{eta_val}m",
+            "page_size": request.form.get('page_size', 'A4'), "status": "Queued"
         }).execute()
-
-        os.remove(temp_path)
+        
+        return redirect('/my-orders')
+        
     except Exception as e:
-        print("Upload Error:", e)
-
-    return redirect(url_for('my_orders'))
-
-@app.route('/update/<id>/<status>')
-def update_status(id, status):
-    if session.get('user') == 'staff@jiit.ac.in':
-        try:
-            supabase.table('print_jobs').update({"status": status}).eq("id", id).execute()
-        except Exception as e:
-            print("Update error:", e)
-    return redirect(url_for('home'))
+        print(f"\n--- UPLOAD ERROR --- \n{e}\n--------------------\n")
+        return f"<h1>Upload Failed:</h1><p>{e}</p><br><a href='/'>Go Back</a>"
 
 @app.route('/api/queue')
-def api_queue():
-    if not session.get('user'):
-        return jsonify([])
-    try:
-        response = supabase.table('print_jobs').select("*").order('created_at', desc=True).execute()
-        return jsonify(response.data)
-    except Exception:
-        return jsonify([])
+def get_queue():
+    res = supabase.table('print_jobs').select("*").execute()
+    return jsonify(res.data)
+
+@app.route('/update/<int:job_id>/<status>')
+def update_status(job_id, status):
+    supabase.table('print_jobs').update({"status": status}).eq("id", job_id).execute()
+    return redirect('/')
 
 @app.route('/logout')
 def logout():
-    session.clear()
-    return redirect(url_for('home'))
+    session.clear(); return redirect('/')
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5001)
+    app.run(debug=True, use_reloader=False, port=5001)
