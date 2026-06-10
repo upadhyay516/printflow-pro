@@ -66,6 +66,8 @@ HTML_TEMPLATE = """
         td { padding: 12px 0; border-top: 1px solid #f1f5f9; }
         #pay-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(5px); z-index: 2000; align-items: center; justify-content: center; }
         .modal { background: white; padding: 2rem; border-radius: 24px; width: 350px; text-align: center; }
+        .view-btn { display: inline-block; background: #eff6ff; color: #2563eb; padding: 8px 12px; border-radius: 6px; font-weight: 800; text-decoration: none; font-size: 0.85rem; }
+        .done-btn { color: green; margin-left: 10px; font-weight: 700; text-decoration: none; }
     </style>
 </head>
 <body>
@@ -116,7 +118,9 @@ HTML_TEMPLATE = """
             {% else %}
             <div class="card"><h3>Order History</h3><div id="queue-list">Syncing...</div></div>
             {% endif %}
+
         {% else %}
+
         <div class="card" style="border-left: 5px solid var(--primary);">
             <h3>Active Queue</h3>
             <table>
@@ -129,14 +133,15 @@ HTML_TEMPLATE = """
                         <td>₹{{ j.price }}</td>
                         <td><span class="badge {{j.status}}">{{ j.status }}</span></td>
                         <td>
-                            <a href="/view/{{ j.id }}" target="_blank" style="background:#eff6ff; color:var(--primary); padding:8px 12px; border:none; border-radius:6px; font-weight:800; cursor:pointer; text-decoration:none;">VIEW</a>
-                            <a href="/update/{{ j.id }}/Ready" style="color:green; margin-left:10px; font-weight:700; text-decoration:none;">DONE</a>
+                            <a href="/view/{{ j.id }}" target="_blank" class="view-btn">VIEW</a>
+                            <a href="/update/{{ j.id }}/Ready" class="done-btn">DONE</a>
                         </td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
+
         <div class="card" style="opacity: 0.8; margin-top: 2rem;">
             <h3>Staff History (Read-Only)</h3>
             <table>
@@ -145,6 +150,7 @@ HTML_TEMPLATE = """
                 {% endfor %}
             </table>
         </div>
+
         {% endif %}
     </div>
 
@@ -172,11 +178,9 @@ HTML_TEMPLATE = """
                 let html = ''; let activePages = 0; const email = "{{ session['email'] }}";
                 
                 jobs.forEach(j => {
-                    // CRITICAL FIX: Only count pages if status is NOT 'Ready'
                     if(j.status !== 'Ready') {
                         activePages += j.page_count;
                     }
-                    
                     if(j.student_email === email) {
                         const name = j.file_url.split('/').pop().split('_').slice(2).join('_');
                         html += `<div style="padding:15px; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center;">
