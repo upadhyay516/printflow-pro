@@ -240,11 +240,21 @@ def auth():
         print(f"SUPABASE ERROR: {e}") 
         return f"<h1>Detailed Auth Error:</h1><p>{e}</p><br><a href='/'>Go Back</a>"
 
-@app.route('/view/<int:job_id>')
+@app.route('/view/<job_id>')
 def view_file(job_id):
-    job = supabase.table('print_jobs').select("file_url").eq("id", job_id).single().execute()
-    response = requests.get(job.data['file_url'], stream=True)
-    return Response(response.iter_content(chunk_size=1024), mimetype='application/pdf', headers={"Content-Disposition": "inline"})
+    try:
+        job = supabase.table('print_jobs').select("file_url").eq("id", job_id).single().execute()
+        file_url = job.data['file_url']
+        response = requests.get(file_url, timeout=15)
+        response.raise_for_status()
+        return Response(
+            response.content,
+            mimetype='application/pdf',
+            headers={"Content-Disposition": "inline; filename=document.pdf"}
+        )
+    except Exception as e:
+        print(f"\n--- VIEW FILE ERROR ---\n{e}\n----------------------\n")
+        return f"<h1>Could not load file</h1><p>{e}</p><br><a href='/'>Go Back</a>", 500
 
 @app.route('/upload', methods=['POST'])
 def upload():
