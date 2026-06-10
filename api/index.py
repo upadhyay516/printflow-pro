@@ -726,7 +726,7 @@ HTML_TEMPLATE = """
                 <label class="form-label">PDF Document</label>
                 <input type="file" name="file" accept=".pdf" required id="fileInput">
             </div>
-            <div class="form-grid">
+           <div class="form-grid">
                 <div class="form-group">
                     <label class="form-label">Color Mode</label>
                     <select name="color_mode" id="colorMode">
@@ -741,6 +741,10 @@ HTML_TEMPLATE = """
                         <option value="A3">A3</option>
                     </select>
                 </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Page Range <span style="color:var(--muted); font-weight:400; text-transform:none; letter-spacing:0;">(optional — e.g. 1-3, 5, 7-9 · leave blank for all)</span></label>
+                <input type="text" name="page_range" id="pageRange" placeholder="e.g. 1-3, 5, 7-9  or leave blank for all pages">
             </div>
             <button type="button" onclick="showPayment()" class="btn btn-primary" style="margin-top:0.5rem;">
                 <i data-lucide="credit-card" style="width:16px;height:16px;"></i>
@@ -993,7 +997,8 @@ def upload():
         temp_dir = tempfile.gettempdir()
         local_path = os.path.join(temp_dir, f"{t_stamp}.pdf")
         file.save(local_path)
-        count, final_path = process_pdf_and_count(local_path, local_path, "")
+        page_range = request.form.get('page_range', '').strip()
+        count, final_path = process_pdf_and_count(local_path, local_path, page_range)
         total_price = count * (11 if color_mode == 'Color' else 3)
         active = supabase.table('print_jobs').select("page_count").neq("status", "Ready").execute()
         total_active_pages = sum(j['page_count'] for j in active.data)
