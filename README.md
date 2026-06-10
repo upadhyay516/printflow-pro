@@ -32,7 +32,7 @@ Built as a single-file Python Flask application, it handles secure authenticatio
 ### 👨‍💼 Staff (Admin) Portal
 - **Role-Based Access:** Logging in with `staff@jiit.ac.in` auto-assigns the `staff` role and redirects to the Admin Dashboard.
 - **Master Queue View:** Displays all incoming jobs — student name, page config, price, and current status.
-- **Cloud PDF Streaming:** The "VIEW" button streams the PDF directly from the Supabase Storage bucket to the browser inline, without local downloads.
+- **Cloud PDF Viewing:** The "VIEW" button opens the PDF directly from the Supabase Storage bucket to the browser inline, without local downloads.
 - **One-Click Fulfillment:** Clicking "DONE" changes a job's status to `Ready`, instantly reflecting on the student's live dashboard and moving the job to the read-only history section.
 
 ---
