@@ -1,16 +1,3 @@
-That specific error—`TemplateSyntaxError: Unexpected end of template. Jinja was looking for the following tags: 'endif'`—is actually a huge clue!
-
-It means that when you merged my updated code with your custom UI, an `{% if %}` statement got opened in the HTML, but the matching `{% endif %}` got accidentally deleted or left out. When Flask tries to read the HTML, it reaches the bottom of the file, realizes a statement was never closed, and crashes instantly.
-
-I also noticed in your traceback that your Python code is calling `active_page="dashboard"`. My previous code didn't have that route built in, which means you've been doing some excellent custom coding on the backend to make the sidebar tabs work!
-
-To make sure there are zero missing tags, zero missing variables, and zero 500 errors, I have taken your custom `active_page` logic and perfectly integrated it into the crash-proof template.
-
-Here is your master **`index.py`**. Copy and replace the entire file.
-
-*(Remember to paste your `YOUR_SUPABASE_ANON_KEY_HERE` into line 14!)*
-
-```python
 from flask import Flask, request, render_template_string, redirect, session, jsonify, url_for
 from supabase import create_client, Client
 import os
@@ -335,5 +322,3 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True, port=5001)
-
-```
