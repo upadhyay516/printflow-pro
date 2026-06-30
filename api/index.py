@@ -1,22 +1,26 @@
 import os, time, PyPDF2, requests, tempfile
 from flask import Flask, request, render_template_string, redirect, url_for, session, jsonify, Response
+from datetime import timedelta
 from supabase import create_client
 
 try:
     from dotenv import load_dotenv
-    load_dotenv()  # reads .env in this folder for local runs; harmless no-op on Vercel
+    load_dotenv()
 except ImportError:
     pass
 
 app = Flask(__name__)
 
-# Locally: values come from .env (see .env.example). On Vercel: Project Settings -> Environment Variables.
-# (No hardcoded fallback — this repo is public, so a hardcoded key is a public key.)
+
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "d1cca308bd5845d897e3dce2a8baa1e91350fbda0f2cddcb5e627dc8510c6a69")
+
 
 # --- CONFIGURATION ---
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://qsfwlyucognzoojijgul.supabase.co")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFzZndseXVjb2duem9vamlqZ3VsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwNjUwNjgsImV4cCI6MjA5NjY0MTA2OH0.WeipU_k1_Rm6M97gC7LMsjbFspjVRDiPOnAHreeNATc")
+
+
+SESSION_TIMEOUT_MINUTES = int(os.environ.get("SESSION_TIMEOUT_MINUTES", "10"))
 
 if not app.secret_key:
     raise RuntimeError(
@@ -518,6 +522,9 @@ HTML_TEMPLATE = """
     <button class="nav-item" data-view="staff" id="navStaff" style="display:none;" onclick="setView('staff')">
       <i data-lucide="server-cog"></i> Staff Console
     </button>
+    <button class="nav-item" data-view="account" id="navAccount" onclick="setView('account')">
+      <i data-lucide="user-cog"></i> Account
+    </button>
 
     <a href="#" class="nav-item nav-logout" onclick="logout();return false;">
       <i data-lucide="log-out"></i> Sign Out
@@ -635,6 +642,35 @@ HTML_TEMPLATE = """
             <tr><td colspan="4"><div class="empty-state"><i data-lucide="inbox"></i><p>No completed jobs yet.</p></div></td></tr>
           </tbody>
         </table>
+      </div>
+    </section>
+
+    <!-- ─── ACCOUNT VIEW (change password) ─── -->
+    <section id="view-account" class="view" style="display:none;">
+      <div class="card tilt reveal" style="max-width:460px;">
+        <div class="section-header">
+          <div class="section-title"><i data-lucide="key-round"></i> Change Password</div>
+        </div>
+        <p class="hint" style="margin-bottom:1.2rem;">Update the password used to sign in to PrintFlow.</p>
+        <form id="changePasswordForm" onsubmit="return false;">
+          <div id="pwError" class="login-error" style="display:none;"></div>
+          <div id="pwSuccess" class="login-error" style="display:none; color:var(--green); background:rgba(52,211,153,0.08); border-color:rgba(52,211,153,0.3);"></div>
+          <div class="form-group">
+            <label class="form-label">Current Password</label>
+            <input type="password" id="currentPassword" placeholder="••••••••••" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">New Password</label>
+            <input type="password" id="newPassword" placeholder="At least 6 characters" required minlength="6">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Confirm New Password</label>
+            <input type="password" id="confirmPassword" placeholder="Re-enter new password" required minlength="6">
+          </div>
+          <button type="button" onclick="changePassword()" class="btn btn-primary" id="changePwBtn">
+            <i data-lucide="shield-check" style="width:16px;height:16px;"></i> Update Password
+          </button>
+        </form>
       </div>
     </section>
 
@@ -756,6 +792,28 @@ let currentEmail = '';
 let loginRole = 'student';
 let jobs = [];           // hydrated from the server, not faked client-side
 let pollTimer = null;
+let sessionTimer = null;
+
+/* ── Inactivity / idle client-side warning, mirrors the server-side sliding
+   session timeout (SESSION_TIMEOUT_MINUTES, default 30 min). This does NOT
+   replace server enforcement — it just gives the user a heads-up and a clean
+   redirect instead of silently hitting 401s on their next click. ── */
+const SESSION_TIMEOUT_MS = {{ session_timeout_minutes }} * 60 * 1000;
+let lastActivity = Date.now();
+['mousemove','keydown','click','scroll','touchstart'].forEach(evt=>{
+  addEventListener(evt, ()=>{ lastActivity = Date.now(); }, {passive:true});
+});
+function startSessionWatcher(){
+  if(sessionTimer) clearInterval(sessionTimer);
+  sessionTimer = setInterval(()=>{
+    if(Date.now() - lastActivity > SESSION_TIMEOUT_MS){
+      clearInterval(sessionTimer);
+      clearInterval(pollTimer);
+      alert('Your session has expired due to inactivity. Please sign in again.');
+      window.location.href = '/';
+    }
+  }, 15000);
+}
 
 function setLoginRole(r){
   loginRole = r;
@@ -835,6 +893,8 @@ function enterApp(email, r){
   refreshQueue();
   if(pollTimer) clearInterval(pollTimer);
   pollTimer = setInterval(refreshQueue, 4000);
+  lastActivity = Date.now();
+  startSessionWatcher();
 }
 
 /* Sets the read-only post-login role display. This is NOT switchable in-app —
@@ -851,6 +911,7 @@ function applyRoleUI(r){
 
 async function logout(){
   if(pollTimer) clearInterval(pollTimer);
+  if(sessionTimer) clearInterval(sessionTimer);
   try{ await fetch('/logout'); }catch(e){}
   window.location.href = '/';
 }
@@ -870,7 +931,7 @@ function setView(v){
   document.querySelectorAll('.view').forEach(el=>el.style.display='none');
   document.getElementById('view-'+v).style.display='block';
   document.querySelectorAll('.nav-item[data-view]').forEach(el=>el.classList.toggle('active', el.dataset.view===v));
-  const titles = {dashboard:'Print Dashboard', orders:'My Print Orders', staff:'Staff Console'};
+  const titles = {dashboard:'Print Dashboard', orders:'My Print Orders', staff:'Staff Console', account:'Account Settings'};
   document.getElementById('pageTitle').innerText = titles[v];
   observeReveals();
   render();
@@ -1027,6 +1088,54 @@ async function advanceStatus(id, status){
   } catch(err){ alert('Network error.'); }
 }
 
+/* ════════════════════ CHANGE PASSWORD ════════════════════ */
+function showPwError(msg){
+  const el = document.getElementById('pwError');
+  document.getElementById('pwSuccess').style.display = 'none';
+  el.innerText = msg;
+  el.style.display = 'block';
+}
+function showPwSuccess(msg){
+  const el = document.getElementById('pwSuccess');
+  document.getElementById('pwError').style.display = 'none';
+  el.innerText = msg;
+  el.style.display = 'block';
+}
+async function changePassword(){
+  const current = document.getElementById('currentPassword').value;
+  const next = document.getElementById('newPassword').value;
+  const confirm = document.getElementById('confirmPassword').value;
+
+  if(!current || !next || !confirm){ showPwError('Please fill in all fields.'); return; }
+  if(next.length < 6){ showPwError('New password must be at least 6 characters.'); return; }
+  if(next !== confirm){ showPwError('New password and confirmation do not match.'); return; }
+  if(next === current){ showPwError('New password must be different from the current password.'); return; }
+
+  const btn = document.getElementById('changePwBtn');
+  btn.disabled = true;
+  const origText = btn.innerHTML;
+  btn.innerHTML = 'Updating…';
+  try{
+    const fd = new FormData();
+    fd.append('current_password', current);
+    fd.append('new_password', next);
+    const res = await fetch('/change-password', { method:'POST', body: fd });
+    const data = await res.json();
+    if(!res.ok || data.error){
+      showPwError(data.error || 'Could not update password.');
+      return;
+    }
+    showPwSuccess('Password updated successfully.');
+    document.getElementById('changePasswordForm').reset();
+  } catch(err){
+    showPwError('Network error — could not reach the server.');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = origText;
+    lucide.createIcons();
+  }
+}
+
 </script>
 </body>
 </html>
@@ -1042,7 +1151,8 @@ def index():
         logged_in=logged_in,
         email=session.get('email'),
         role=session.get('role'),
-        active_page="dashboard"
+        active_page="dashboard",
+        session_timeout_minutes=SESSION_TIMEOUT_MINUTES
     )
 
 @app.route('/my-orders')
@@ -1053,7 +1163,8 @@ def my_orders():
         logged_in=logged_in,
         email=session.get('email'),
         role=session.get('role'),
-        active_page="orders"
+        active_page="orders",
+        session_timeout_minutes=SESSION_TIMEOUT_MINUTES
     )
 
 # Staff accounts are explicitly allow-listed. Add additional staff emails here
@@ -1087,11 +1198,59 @@ def auth():
             res = supabase.auth.sign_up({"email": email, "password": pwd})
         else:
             res = supabase.auth.sign_in_with_password({"email": email, "password": pwd})
-        session.update({'user_id': str(res.user.id), 'email': email, 'role': actual_role})
+        session.clear()
+        session.update({
+            'user_id': str(res.user.id),
+            'email': email,
+            'role': actual_role,
+            # Needed later so /change-password can act on this user's behalf
+            # via supabase.auth.update_user (Supabase requires an active
+            # user session/access token for that call, not just the anon key).
+            'access_token': res.session.access_token,
+            'refresh_token': res.session.refresh_token,
+        })
+        session.permanent = True
         return redirect('/')
     except Exception as e:
         print(f"SUPABASE ERROR: {e}")
         return f"<h1>Detailed Auth Error:</h1><p>{e}</p><br><a href='/'>Go Back</a>"
+
+@app.route('/change-password', methods=['POST'])
+def change_password():
+    if 'role' not in session or 'email' not in session:
+        return jsonify({"error": "Not authenticated"}), 401
+
+    current_password = request.form.get('current_password', '')
+    new_password = request.form.get('new_password', '')
+
+    if not current_password or not new_password:
+        return jsonify({"error": "Both current and new password are required."}), 400
+    if len(new_password) < 6:
+        return jsonify({"error": "New password must be at least 6 characters."}), 400
+
+    try:
+        # Re-verify the current password before allowing a change — don't just
+        # trust that the user is who the session says they are.
+        supabase.auth.sign_in_with_password({
+            "email": session['email'],
+            "password": current_password
+        })
+    except Exception:
+        return jsonify({"error": "Current password is incorrect."}), 403
+
+    try:
+        # update_user acts on whichever session is currently set on the client,
+        # so we restore this user's tokens first.
+        supabase.auth.set_session(session['access_token'], session['refresh_token'])
+        result = supabase.auth.update_user({"password": new_password})
+        # Refresh stored tokens in case Supabase rotated them.
+        if getattr(result, 'session', None):
+            session['access_token'] = result.session.access_token
+            session['refresh_token'] = result.session.refresh_token
+        return jsonify({"ok": True})
+    except Exception as e:
+        print(f"PASSWORD CHANGE ERROR: {e}")
+        return jsonify({"error": "Could not update password. Please try again."}), 500
 
 @app.route('/view/<job_id>')
 def view_file(job_id):
@@ -1158,6 +1317,13 @@ def update_status(job_id, status):
         return jsonify({"error": "Invalid status."}), 400
     supabase.table('print_jobs').update({"status": status}).eq("id", job_id).execute()
     return jsonify({"ok": True})
+
+app.permanent_session_lifetime = timedelta(minutes=SESSION_TIMEOUT_MINUTES)
+
+@app.before_request
+def enforce_session_timeout():
+    session.permanent = True
+    session.modified = True
 
 @app.route('/clear-ready')
 def clear_ready():
