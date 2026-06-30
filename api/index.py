@@ -18,11 +18,15 @@ app.secret_key = os.environ.get("FLASK_SECRET_KEY", "d1cca308bd5845d897e3dce2a8b
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://qsfwlyucognzoojijgul.supabase.co")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFzZndseXVjb2duem9vamlqZ3VsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwNjUwNjgsImV4cCI6MjA5NjY0MTA2OH0.WeipU_k1_Rm6M97gC7LMsjbFspjVRDiPOnAHreeNATc")
 
-if not app.secret_key or not SUPABASE_URL or not SUPABASE_KEY:
+if not app.secret_key:
     raise RuntimeError(
-        "Missing FLASK_SECRET_KEY / SUPABASE_URL / SUPABASE_KEY. "
-        "Locally: create a .env file (see .env.example) in this folder. "
-        "On Vercel: set them under Project Settings > Environment Variables."
+        "FLASK_SECRET_KEY is not set. Generate one with: python -c \"import secrets; print(secrets.token_hex(32))\" "
+        "and set it as an environment variable (locally in .env, or in your Vercel project settings)."
+    )
+if not SUPABASE_URL or not SUPABASE_KEY:
+    raise RuntimeError(
+        "SUPABASE_URL and SUPABASE_KEY must be set as environment variables. "
+        "Find them in your Supabase project under Settings > API."
     )
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
@@ -55,962 +59,973 @@ HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PrintFlow Pro | JIIT Portal</title>
-    <link rel="icon" type="image/png" href="https://qsfwlyucognzoojijgul.supabase.co/storage/v1/object/public/assets/PF_Logo.png">
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --bg:        #080c14;
-            --surface:   #0d1320;
-            --surface2:  #111827;
-            --border:    #1e2d45;
-            --border2:   #2a3f5f;
-            --primary:   #3b82f6;
-            --primary2:  #60a5fa;
-            --glow:      rgba(59,130,246,0.35);
-            --accent:    #f59e0b;
-            --accent2:   #fbbf24;
-            --green:     #10b981;
-            --red:       #ef4444;
-            --text:      #e2e8f0;
-            --muted:     #64748b;
-            --sidebar-w: 270px;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PRINTFLOW // JIIT Smart Printing Network</title>
+<link rel="icon" href="data:,">
+<script src="https://unpkg.com/lucide@latest"></script>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#04060c;
+    --bg2:#070b15;
+    --surface: rgba(13,19,34,0.55);
+    --surface-solid:#0b101c;
+    --surface2: rgba(20,28,48,0.6);
+    --border: rgba(56,189,248,0.16);
+    --border-strong: rgba(56,189,248,0.45);
+    --primary:#38bdf8;
+    --primary2:#7dd3fc;
+    --glow: rgba(56,189,248,0.35);
+    --accent:#c084fc;
+    --accent2:#e9d5ff;
+    --aglow: rgba(192,132,252,0.35);
+    --gold:#fbbf24;
+    --gold2:#fde68a;
+    --green:#34d399;
+    --red:#fb7185;
+    --text:#e8eefb;
+    --muted:#6f7e96;
+    --sidebar-w:280px;
+  }
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+  html{scroll-behavior:smooth;}
+  body{
+    font-family:'Space Grotesk',sans-serif;
+    background:var(--bg);
+    color:var(--text);
+    min-height:100vh;
+    overflow-x:hidden;
+    cursor:none;
+  }
+  ::selection{background:var(--glow); color:#fff;}
+  ::-webkit-scrollbar{width:6px;}
+  ::-webkit-scrollbar-track{background:var(--bg2);}
+  ::-webkit-scrollbar-thumb{background:var(--border-strong); border-radius:3px;}
 
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  h1,h2,h3,.font-display{font-family:'Orbitron',sans-serif;}
+  .mono{font-family:'JetBrains Mono',monospace;}
 
-        body {
-            font-family: 'Space Grotesk', sans-serif;
-            background: var(--bg);
-            color: var(--text);
-            display: flex;
-            min-height: 100vh;
-            overflow-x: hidden;
-        }
+  a{color:inherit;}
 
-        /* ── SCROLLBAR ── */
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: var(--surface); }
-        ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+  /* ───────────────────────── CUSTOM CURSOR ───────────────────────── */
+  .cursor-dot, .cursor-ring{
+    position:fixed; top:0; left:0; pointer-events:none; z-index:9999;
+    border-radius:50%;
+    transform:translate(-50%,-50%);
+    will-change:transform;
+  }
+  .cursor-dot{
+    width:6px; height:6px; background:var(--primary2);
+    box-shadow:0 0 8px var(--primary2);
+    transition:opacity .2s, background .2s;
+  }
+  .cursor-ring{
+    width:34px; height:34px;
+    border:1px solid var(--border-strong);
+    transition:width .25s, height .25s, border-color .25s, background .25s, border-radius .25s;
+  }
+  .cursor-ring::before,.cursor-ring::after{
+    content:''; position:absolute; background:var(--primary2);
+  }
+  .cursor-ring::before{ top:50%; left:-7px; width:6px; height:1px; transform:translateY(-50%);}
+  .cursor-ring::after{ top:-7px; left:50%; width:1px; height:6px; transform:translateX(-50%);}
+  body.cursor-active .cursor-ring{
+    width:56px; height:56px;
+    border-color:var(--primary);
+    background:rgba(56,189,248,0.08);
+  }
+  body.cursor-danger .cursor-ring{ border-color:var(--red); background:rgba(251,113,133,0.08);}
+  body.cursor-danger .cursor-dot{ background:var(--red); box-shadow:0 0 8px var(--red);}
+  @media (hover:none){ body{cursor:auto;} .cursor-dot,.cursor-ring{display:none;} }
 
-        /* ── ANIMATED BG GRID ── */
-        body::before {
-            content: '';
-            position: fixed;
-            inset: 0;
-            background-image:
-                linear-gradient(rgba(59,130,246,0.03) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(59,130,246,0.03) 1px, transparent 1px);
-            background-size: 40px 40px;
-            pointer-events: none;
-            z-index: 0;
-        }
+  /* ───────────────────────── BACKGROUND FX ───────────────────────── */
+  .bg-fx{position:fixed; inset:0; z-index:0; pointer-events:none; overflow:hidden;}
+  .bg-grid{
+    position:absolute; inset:-20% -10%;
+    background-image:
+      linear-gradient(rgba(56,189,248,0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(56,189,248,0.05) 1px, transparent 1px);
+    background-size:42px 42px;
+    mask-image:radial-gradient(ellipse 70% 60% at 50% 30%, black 40%, transparent 90%);
+    will-change:transform;
+  }
+  .orb{
+    position:absolute; border-radius:50%; filter:blur(60px);
+    will-change:transform;
+  }
+  .orb-1{ width:480px; height:480px; top:-120px; left:-100px; background:radial-gradient(circle, var(--glow), transparent 70%); }
+  .orb-2{ width:420px; height:420px; top:30%; right:-140px; background:radial-gradient(circle, var(--aglow), transparent 70%); }
+  .orb-3{ width:380px; height:380px; bottom:5%; left:15%; background:radial-gradient(circle, rgba(251,191,36,0.18), transparent 70%); }
+  .orb-4{ width:300px; height:300px; bottom:40%; right:20%; background:radial-gradient(circle, var(--glow), transparent 70%); }
 
-        /* ── SIDEBAR ── */
-        .sidebar {
-            width: var(--sidebar-w);
-            background: var(--surface);
-            height: 100vh;
-            padding: 2rem 1.25rem;
-            position: fixed;
-            left: 0; top: 0;
-            z-index: 100;
-            border-right: 1px solid var(--border);
-            display: flex;
-            flex-direction: column;
-            gap: 0.25rem;
-        }
+  .scanline{
+    position:absolute; left:0; right:0; height:140px;
+    background:linear-gradient(180deg, transparent, rgba(56,189,248,0.05) 45%, rgba(56,189,248,0.12) 50%, rgba(56,189,248,0.05) 55%, transparent);
+    animation:scan 9s linear infinite;
+  }
+  @keyframes scan{ 0%{transform:translateY(-150px);} 100%{transform:translateY(110vh);} }
 
-        .sidebar::after {
-            content: '';
-            position: absolute;
-            top: 0; right: -1px;
-            width: 1px; height: 100%;
-            background: linear-gradient(180deg, transparent, var(--primary), transparent);
-            opacity: 0.5;
-        }
+  .noise-vignette{ position:absolute; inset:0; box-shadow: inset 0 0 220px rgba(0,0,0,0.85); }
 
-        .logo {
-            font-family: 'JetBrains Mono', monospace;
-            font-weight: 700;
-            font-size: 1.4rem;
-            margin-bottom: 2rem;
-            padding: 0 0.5rem;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            letter-spacing: 2px;
-        }
-        .logo .bracket { color: var(--muted); }
-        .logo .name { color: var(--text); }
-        .logo .accent { color: var(--primary); }
+  /* ───────────────────────── SCROLL PROGRESS HUD ───────────────────────── */
+  .scroll-hud{
+    position:fixed; right:18px; top:50%; transform:translateY(-50%);
+    width:18px; height:200px; z-index:60;
+    display:flex; flex-direction:column; align-items:center; gap:8px;
+  }
+  .scroll-hud .track{ position:relative; width:2px; flex:1; background:var(--border); }
+  .scroll-hud .fill{ position:absolute; bottom:0; left:0; width:100%; background:linear-gradient(180deg,var(--primary),var(--accent)); box-shadow:0 0 8px var(--glow); height:0%; }
+  .scroll-hud .pct{ font-size:.62rem; letter-spacing:1px; color:var(--muted); writing-mode:vertical-rl; }
+  @media (max-width:1000px){ .scroll-hud{display:none;} }
 
-        .nav-label {
-            font-size: 0.65rem;
-            font-weight: 700;
-            letter-spacing: 2px;
-            color: var(--muted);
-            padding: 0.5rem 0.75rem;
-            text-transform: uppercase;
-            margin-top: 0.5rem;
-        }
+  /* ───────────────────────── REVEAL ANIM ───────────────────────── */
+  .reveal{ opacity:0; transform:translateY(36px); transition:opacity .7s cubic-bezier(.2,.7,.3,1), transform .7s cubic-bezier(.2,.7,.3,1); }
+  .reveal.in{ opacity:1; transform:translateY(0); }
 
-        .nav-item {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 11px 14px;
-            color: var(--muted);
-            text-decoration: none;
-            border-radius: 10px;
-            transition: all 0.2s;
-            font-size: 0.9rem;
-            font-weight: 500;
-            border: 1px solid transparent;
-            position: relative;
-            overflow: hidden;
-        }
-        .nav-item::before {
-            content: '';
-            position: absolute;
-            left: 0; top: 0;
-            width: 3px; height: 100%;
-            background: var(--primary);
-            border-radius: 0 2px 2px 0;
-            transform: scaleY(0);
-            transition: transform 0.2s;
-        }
-        .nav-item:hover { background: rgba(59,130,246,0.08); color: var(--text); border-color: var(--border); }
-        .nav-item:hover::before { transform: scaleY(1); }
-        .nav-item.active { background: rgba(59,130,246,0.12); color: var(--primary2); border-color: rgba(59,130,246,0.25); }
-        .nav-item.active::before { transform: scaleY(1); }
+  /* ───────────────────────── LOGIN SCREEN ───────────────────────── */
+  #loginScreen{
+    position:relative; z-index:5; min-height:100vh; display:flex; align-items:center; justify-content:center; padding:2rem;
+  }
+  .login-box{
+    position:relative; width:430px; max-width:100%;
+    background:var(--surface); backdrop-filter:blur(18px);
+    border:1px solid var(--border); border-radius:20px;
+    padding:2.75rem 2.4rem; box-shadow:0 0 80px rgba(56,189,248,0.08), 0 30px 60px rgba(0,0,0,0.5);
+    will-change:transform;
+  }
+  .login-box::before{
+    content:''; position:absolute; top:0; left:14%; right:14%; height:1px;
+    background:linear-gradient(90deg,transparent,var(--primary),transparent);
+  }
+  .corner{ position:absolute; width:18px; height:18px; border-color:var(--primary); opacity:.7;}
+  .corner.tl{ top:-1px; left:-1px; border-top:2px solid; border-left:2px solid; border-radius:6px 0 0 0;}
+  .corner.tr{ top:-1px; right:-1px; border-top:2px solid; border-right:2px solid; border-radius:0 6px 0 0;}
+  .corner.bl{ bottom:-1px; left:-1px; border-bottom:2px solid; border-left:2px solid; border-radius:0 0 0 6px;}
+  .corner.br{ bottom:-1px; right:-1px; border-bottom:2px solid; border-right:2px solid; border-radius:0 0 6px 0;}
 
-        .nav-logout {
-            margin-top: auto;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 11px 14px;
-            color: var(--muted);
-            text-decoration: none;
-            border-radius: 10px;
-            border: 1px solid transparent;
-            font-size: 0.9rem;
-            font-weight: 500;
-            transition: all 0.2s;
-        }
-        .nav-logout:hover { background: rgba(239,68,68,0.1); color: var(--red); border-color: rgba(239,68,68,0.2); }
+  .login-logo{
+    text-align:center; font-size:1.9rem; font-weight:900; letter-spacing:4px; margin-bottom:.4rem;
+  }
+  .login-logo .lb{color:var(--muted); font-weight:500;}
+  .login-logo .lp{color:var(--text);}
+  .login-logo .la{color:var(--primary); text-shadow:0 0 18px var(--glow);}
+  .login-status{ text-align:center; font-size:.68rem; letter-spacing:2px; color:var(--muted); margin-bottom:2.1rem; text-transform:uppercase; display:flex; align-items:center; justify-content:center; gap:6px;}
+  .status-dot{width:6px;height:6px;border-radius:50%;background:var(--green); box-shadow:0 0 6px var(--green); animation:pulse-dot 2s infinite;}
+  @keyframes pulse-dot{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.8)}}
 
-        /* ── MAIN CONTENT ── */
-        .main {
-            margin-left: var(--sidebar-w);
-            padding: 2.5rem 3rem;
-            width: calc(100% - var(--sidebar-w));
-            min-height: 100vh;
-            position: relative;
-            z-index: 1;
-        }
+  .form-group{margin-bottom:1.1rem;}
+  .form-label{font-size:.66rem; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; color:var(--muted); margin-bottom:.5rem; display:block;}
+  input[type=email],input[type=password],input[type=text],select{
+    width:100%; padding:13px 16px; background:rgba(4,6,12,0.6); border:1px solid var(--border); border-radius:10px;
+    color:var(--text); font-family:'Space Grotesk',sans-serif; font-size:.9rem; outline:none;
+    transition:border-color .2s, box-shadow .2s;
+  }
+  input:focus,select:focus{border-color:var(--primary); box-shadow:0 0 0 3px rgba(56,189,248,0.15);}
+  input[type=file]{cursor:none; color:var(--muted); width:100%; padding:13px 16px; background:rgba(4,6,12,0.6); border:1px solid var(--border); border-radius:10px; font-family:'Space Grotesk',sans-serif; font-size:.85rem;}
+  input[type=file]::file-selector-button{
+    background:var(--surface2); color:var(--primary2); border:1px solid var(--border); border-radius:6px;
+    padding:7px 14px; font-family:'Space Grotesk',sans-serif; font-size:.78rem; font-weight:700; cursor:none; margin-right:12px;
+  }
+  select option{background:var(--surface-solid);}
+  .form-grid{display:grid; grid-template-columns:1fr 1fr; gap:1rem;}
 
-        /* ── PAGE HEADER ── */
-        .page-header {
-            margin-bottom: 2.5rem;
-            padding-bottom: 1.5rem;
-            border-bottom: 1px solid var(--border);
-        }
-        .page-header h1 {
-            font-size: 1.75rem;
-            font-weight: 700;
-            background: linear-gradient(135deg, var(--text) 0%, var(--primary2) 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            margin-bottom: 0.35rem;
-        }
-        .page-header p { color: var(--muted); font-size: 0.875rem; }
-        .page-header strong { color: var(--primary2); }
+  .btn{
+    display:inline-flex; align-items:center; justify-content:center; gap:8px;
+    padding:13px 24px; border-radius:10px; font-family:'Space Grotesk',sans-serif; font-size:.88rem;
+    font-weight:700; letter-spacing:.3px; cursor:none; border:none; outline:none; width:100%;
+    position:relative; overflow:hidden; transition:transform .15s;
+  }
+  .btn-primary{ background:linear-gradient(135deg,var(--primary),#0ea5e9); color:#03101c; box-shadow:0 0 24px rgba(56,189,248,0.35);}
+  .btn-primary:hover{ box-shadow:0 0 38px rgba(56,189,248,0.55); }
+  .btn-ghost{ background:transparent; color:var(--primary2); border:1px solid var(--border-strong); }
+  .btn-ghost:hover{ background:rgba(56,189,248,0.08); }
+  .btn-danger{ background:transparent; color:var(--red); border:1px solid rgba(251,113,133,0.3);}
+  .btn-danger:hover{ background:rgba(251,113,133,0.1);}
 
-        /* ── CARDS ── */
-        .card {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 16px;
-            padding: 1.75rem;
-            margin-bottom: 1.5rem;
-            position: relative;
-            overflow: hidden;
-            transition: border-color 0.2s, box-shadow 0.2s;
-        }
-        .card:hover { border-color: var(--border2); box-shadow: 0 0 30px rgba(59,130,246,0.05); }
-        .card::before {
-            content: '';
-            position: absolute;
-            top: 0; left: 0; right: 0;
-            height: 1px;
-            background: linear-gradient(90deg, transparent, var(--primary), transparent);
-            opacity: 0;
-            transition: opacity 0.3s;
-        }
-        .card:hover::before { opacity: 0.4; }
+  .login-divider{ display:flex; align-items:center; gap:12px; margin:1.3rem 0;}
+  .login-divider span{font-size:.7rem; color:var(--muted); letter-spacing:1px;}
+  .login-divider::before,.login-divider::after{content:''; flex:1; height:1px; background:var(--border);}
+  .login-error{
+    background:rgba(251,113,133,0.08); border:1px solid rgba(251,113,133,0.3); color:var(--red);
+    border-radius:10px; padding:.7rem .9rem; font-size:.78rem; margin-bottom:1.1rem; line-height:1.4;
+  }
 
-        .card-title {
-            font-size: 0.85rem;
-            font-weight: 700;
-            letter-spacing: 1.5px;
-            text-transform: uppercase;
-            color: var(--muted);
-            margin-bottom: 0.75rem;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .card-title i { color: var(--primary); width: 16px; height: 16px; }
+  /* ───────────────────────── APP SHELL ───────────────────────── */
+  #appShell{ display:none; position:relative; z-index:5; }
+  .sidebar{
+    width:var(--sidebar-w); height:100vh; position:fixed; left:0; top:0; z-index:50;
+    background:rgba(7,11,21,0.7); backdrop-filter:blur(16px);
+    border-right:1px solid var(--border); padding:2rem 1.3rem; display:flex; flex-direction:column; gap:.3rem;
+  }
+  .sidebar::after{ content:''; position:absolute; top:0; right:-1px; width:1px; height:100%; background:linear-gradient(180deg,transparent,var(--primary),transparent); opacity:.5;}
+  .logo{ font-family:'Orbitron',sans-serif; font-weight:900; font-size:1.25rem; letter-spacing:3px; margin-bottom:.4rem; padding:0 .4rem; display:flex; align-items:center; gap:6px;}
+  .logo .b{color:var(--muted);} .logo .n{color:var(--text);} .logo .a{color:var(--primary); text-shadow:0 0 14px var(--glow);}
+  .sys-tag{font-size:.6rem; color:var(--muted); letter-spacing:2px; padding:0 .45rem; margin-bottom:1.8rem;}
 
-        /* ── STATS GRID ── */
-        .stats {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 1.25rem;
-            margin-bottom: 1.5rem;
-        }
-        .stat-card {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 16px;
-            padding: 1.5rem;
-            position: relative;
-            overflow: hidden;
-            transition: all 0.3s;
-        }
-        .stat-card:hover { border-color: var(--primary); box-shadow: 0 0 25px var(--glow); transform: translateY(-2px); }
-        .stat-card::after {
-            content: '';
-            position: absolute;
-            bottom: 0; right: 0;
-            width: 80px; height: 80px;
-            background: radial-gradient(circle, var(--glow) 0%, transparent 70%);
-            pointer-events: none;
-        }
-        .stat-label { font-size: 0.7rem; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); margin-bottom: 0.6rem; }
-        .stat-value { font-family: 'JetBrains Mono', monospace; font-size: 1.75rem; font-weight: 700; color: var(--text); }
-        .stat-value.accent { color: var(--accent2); }
+  .role-toggle{ display:flex; background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:3px; margin-bottom:1.6rem; }
+  .role-toggle button{ flex:1; padding:8px 0; font-size:.7rem; font-weight:700; letter-spacing:1px; background:transparent; border:none; color:var(--muted); border-radius:8px; cursor:none; font-family:'Space Grotesk'; transition:all .2s;}
+  .role-toggle button.active{ background:var(--primary); color:#03101c; box-shadow:0 0 14px var(--glow);}
+  .role-toggle button:disabled{ cursor:not-allowed; opacity:1; }
+  .role-toggle button:disabled:not(.active){ opacity:.4; }
 
-        /* ── FORM ELEMENTS ── */
-        .form-group { margin-bottom: 1rem; }
-        .form-label { font-size: 0.75rem; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); margin-bottom: 0.5rem; display: block; }
+  .nav-label{font-size:.62rem; font-weight:700; letter-spacing:2px; color:var(--muted); padding:.5rem .75rem; text-transform:uppercase;}
+  .nav-item{ display:flex; align-items:center; gap:12px; padding:11px 14px; color:var(--muted); text-decoration:none;
+    border-radius:10px; font-size:.88rem; font-weight:500; border:1px solid transparent; position:relative; overflow:hidden;
+    transition:background .2s, color .2s, border-color .2s; cursor:none; background:none; width:100%; text-align:left; font-family:'Space Grotesk';}
+  .nav-item i{width:17px; height:17px;}
+  .nav-item::before{ content:''; position:absolute; left:0; top:0; width:3px; height:100%; background:var(--primary); transform:scaleY(0); transition:transform .2s; border-radius:0 2px 2px 0;}
+  .nav-item:hover{ background:rgba(56,189,248,0.08); color:var(--text); border-color:var(--border);}
+  .nav-item:hover::before{transform:scaleY(1);}
+  .nav-item.active{ background:rgba(56,189,248,0.13); color:var(--primary2); border-color:rgba(56,189,248,0.3);}
+  .nav-item.active::before{transform:scaleY(1);}
+  .nav-logout{margin-top:auto;}
 
-        input[type="file"],
-        input[type="email"],
-        input[type="password"],
-        input[type="text"],
-        select {
-            width: 100%;
-            padding: 12px 16px;
-            background: var(--bg);
-            border: 1px solid var(--border);
-            border-radius: 10px;
-            color: var(--text);
-            font-family: 'Space Grotesk', sans-serif;
-            font-size: 0.9rem;
-            outline: none;
-            transition: all 0.2s;
-            -webkit-appearance: none;
-        }
-        input:focus, select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(59,130,246,0.15); }
+  .main{ margin-left:var(--sidebar-w); padding:2.6rem 3rem 6rem; min-height:100vh; position:relative; }
 
-        input:-webkit-autofill,
-        input:-webkit-autofill:hover,
-        input:-webkit-autofill:focus {
-            -webkit-box-shadow: 0 0 0px 1000px var(--bg) inset !important;
-            -webkit-text-fill-color: var(--text) !important;
-            caret-color: var(--text);
-        }
+  .page-header{ margin-bottom:2.3rem; padding-bottom:1.4rem; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:1rem;}
+  .page-header h1{ font-size:1.7rem; font-weight:900; letter-spacing:1px;
+    background:linear-gradient(135deg,var(--text),var(--primary2)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; margin-bottom:.4rem;}
+  .page-header p{color:var(--muted); font-size:.85rem;}
+  .page-header strong{color:var(--primary2);}
+  .session-tag{font-family:'JetBrains Mono'; font-size:.7rem; color:var(--muted); border:1px solid var(--border); padding:6px 12px; border-radius:8px; display:flex; align-items:center; gap:6px;}
 
-        input[type="text"] {
-            background: var(--bg) !important;
-            color: var(--text) !important;
-            border: 1px solid var(--border);
-            border-radius: 10px;
-            padding: 12px 16px;
-            font-family: 'Space Grotesk', sans-serif;
-            font-size: 0.9rem;
-            outline: none;
-            width: 100%;
-        }
-        input[type="file"] { cursor: pointer; color: var(--muted); }
-        input[type="file"]::-webkit-file-upload-button {
-            background: var(--surface2);
-            color: var(--primary2);
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            padding: 6px 12px;
-            font-family: 'Space Grotesk', sans-serif;
-            font-size: 0.8rem;
-            font-weight: 600;
-            cursor: pointer;
-            margin-right: 10px;
-            transition: all 0.2s;
-        }
-        input[type="file"]::-webkit-file-upload-button:hover { border-color: var(--primary); color: var(--text); }
-        select option { background: var(--surface2); }
+  /* tilt card */
+  .tilt{ transform-style:preserve-3d; will-change:transform; transition:transform .15s ease-out, box-shadow .25s; }
 
-        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .card{
+    background:var(--surface); backdrop-filter:blur(14px); border:1px solid var(--border); border-radius:18px;
+    padding:1.8rem; margin-bottom:1.5rem; position:relative; overflow:hidden;
+  }
+  .card:hover{ border-color:var(--border-strong); box-shadow:0 0 40px rgba(56,189,248,0.08);}
+  .card::before{ content:''; position:absolute; top:0; left:0; right:0; height:1px; background:linear-gradient(90deg,transparent,var(--primary),transparent); opacity:0; transition:opacity .3s;}
+  .card:hover::before{opacity:.5;}
 
-        /* ── BUTTONS ── */
-        .btn {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            padding: 12px 24px;
-            border-radius: 10px;
-            font-family: 'Space Grotesk', sans-serif;
-            font-size: 0.9rem;
-            font-weight: 600;
-            cursor: pointer;
-            border: none;
-            outline: none;
-            transition: all 0.2s;
-            text-decoration: none;
-            width: 100%;
-        }
-        .btn-primary {
-            background: var(--primary);
-            color: white;
-            box-shadow: 0 0 20px rgba(59,130,246,0.3);
-        }
-        .btn-primary:hover { background: var(--primary2); box-shadow: 0 0 30px rgba(59,130,246,0.5); transform: translateY(-1px); }
-        .btn-primary:active { transform: translateY(0); }
+  .card-title{ font-size:.8rem; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; color:var(--muted); margin-bottom:.7rem; display:flex; align-items:center; gap:8px;}
+  .card-title i{color:var(--primary); width:16px; height:16px;}
 
-        .btn-ghost {
-            background: transparent;
-            color: var(--muted);
-            border: 1px solid var(--border);
-        }
-        .btn-ghost:hover { border-color: var(--border2); color: var(--text); }
+  .stats{display:grid; grid-template-columns:repeat(3,1fr); gap:1.2rem; margin-bottom:1.5rem;}
+  .stat-card{ background:var(--surface); backdrop-filter:blur(14px); border:1px solid var(--border); border-radius:18px; padding:1.5rem; position:relative; overflow:hidden;}
+  .stat-card:hover{ border-color:var(--primary); box-shadow:0 0 28px var(--glow); }
+  .stat-card::after{ content:''; position:absolute; bottom:-30px; right:-30px; width:110px; height:110px; background:radial-gradient(circle,var(--glow),transparent 70%); pointer-events:none;}
+  .stat-label{font-size:.66rem; font-weight:700; letter-spacing:2px; text-transform:uppercase; color:var(--muted); margin-bottom:.6rem; display:flex; align-items:center;}
+  .stat-value{font-family:'JetBrains Mono'; font-size:1.7rem; font-weight:700;}
+  .stat-value.accent{color:var(--gold2);}
+  .stat-value.violet{color:var(--accent2);}
 
-        /* ── BADGES ── */
-        .badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 0.72rem;
-            font-weight: 700;
-            letter-spacing: 0.5px;
-            text-transform: uppercase;
-        }
-        .badge::before { content: ''; width: 6px; height: 6px; border-radius: 50%; }
-        .badge.Queued { background: rgba(100,116,139,0.15); color: #94a3b8; border: 1px solid rgba(100,116,139,0.3); }
-        .badge.Queued::before { background: #94a3b8; }
-        .badge.Printing { background: rgba(245,158,11,0.1); color: #fbbf24; border: 1px solid rgba(245,158,11,0.3); animation: pulse-badge 1.5s infinite; }
-        .badge.Printing::before { background: #fbbf24; }
-        .badge.Ready { background: rgba(16,185,129,0.1); color: #34d399; border: 1px solid rgba(16,185,129,0.3); }
-        .badge.Ready::before { background: #34d399; }
+  .active-dot{display:inline-block; width:7px;height:7px;background:var(--green);border-radius:50%;margin-right:7px;box-shadow:0 0 6px var(--green); animation:pulse-dot 2s infinite;}
 
-        @keyframes pulse-badge { 0%,100% { opacity:1; } 50% { opacity:0.6; } }
+  .form-label-row{display:flex; justify-content:space-between; align-items:baseline;}
+  .hint{color:var(--muted); font-weight:400; text-transform:none; letter-spacing:0; font-size:.7rem;}
 
-        /* ── TABLE ── */
-        table { width: 100%; border-collapse: collapse; }
-        thead tr { border-bottom: 1px solid var(--border); }
-        th {
-            padding: 12px 16px;
-            text-align: left;
-            font-size: 0.7rem;
-            font-weight: 700;
-            letter-spacing: 1.5px;
-            text-transform: uppercase;
-            color: var(--muted);
-        }
-        tbody tr {
-            border-bottom: 1px solid rgba(30,45,69,0.5);
-            transition: background 0.15s;
-        }
-        tbody tr:hover { background: rgba(59,130,246,0.04); }
-        tbody tr:last-child { border-bottom: none; }
-        td { padding: 14px 16px; font-size: 0.875rem; color: var(--text); }
-        td strong { color: var(--primary2); font-weight: 600; }
+  .badge{ display:inline-flex; align-items:center; gap:5px; padding:4px 12px; border-radius:20px; font-size:.7rem; font-weight:700; letter-spacing:.5px; text-transform:uppercase;}
+  .badge::before{content:'';width:6px;height:6px;border-radius:50%;}
+  .badge.Queued{background:rgba(111,126,150,.15); color:#9fb0c8; border:1px solid rgba(111,126,150,.3);}
+  .badge.Queued::before{background:#9fb0c8;}
+  .badge.Printing{background:rgba(251,191,36,.1); color:var(--gold2); border:1px solid rgba(251,191,36,.3); animation:pulse-badge 1.4s infinite;}
+  .badge.Printing::before{background:var(--gold);}
+  .badge.Ready{background:rgba(52,211,153,.1); color:var(--green); border:1px solid rgba(52,211,153,.3);}
+  .badge.Ready::before{background:var(--green);}
+  @keyframes pulse-badge{0%,100%{opacity:1}50%{opacity:.55}}
 
-        /* ── ACTION BUTTONS IN TABLE ── */
-        .view-btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-            background: rgba(59,130,246,0.1);
-            color: var(--primary2);
-            padding: 6px 14px;
-            border-radius: 7px;
-            font-weight: 700;
-            font-size: 0.78rem;
-            text-decoration: none;
-            border: 1px solid rgba(59,130,246,0.2);
-            transition: all 0.2s;
-            letter-spacing: 0.5px;
-        }
-        .view-btn:hover { background: rgba(59,130,246,0.2); border-color: var(--primary); box-shadow: 0 0 12px rgba(59,130,246,0.3); }
+  table{width:100%; border-collapse:collapse;}
+  thead tr{border-bottom:1px solid var(--border);}
+  th{padding:11px 14px; text-align:left; font-size:.66rem; font-weight:700; letter-spacing:1.4px; text-transform:uppercase; color:var(--muted);}
+  tbody tr{border-bottom:1px solid rgba(56,189,248,0.07); transition:background .15s;}
+  tbody tr:hover{background:rgba(56,189,248,0.05);}
+  tbody tr:last-child{border-bottom:none;}
+  td{padding:13px 14px; font-size:.85rem;}
+  td strong{color:var(--primary2);}
 
-        .done-btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-            background: rgba(16,185,129,0.1);
-            color: #34d399;
-            padding: 6px 14px;
-            border-radius: 7px;
-            font-weight: 700;
-            font-size: 0.78rem;
-            text-decoration: none;
-            border: 1px solid rgba(16,185,129,0.2);
-            margin-left: 8px;
-            transition: all 0.2s;
-            letter-spacing: 0.5px;
-        }
-        .done-btn:hover { background: rgba(16,185,129,0.2); border-color: var(--green); box-shadow: 0 0 12px rgba(16,185,129,0.3); }
+  .view-btn,.done-btn{ display:inline-flex; align-items:center; gap:5px; padding:6px 13px; border-radius:7px; font-weight:700; font-size:.74rem; text-decoration:none; letter-spacing:.4px; cursor:none; border:1px solid; background:none;}
+  .view-btn{ color:var(--primary2); border-color:rgba(56,189,248,0.25); background:rgba(56,189,248,0.08);}
+  .view-btn:hover{ box-shadow:0 0 12px rgba(56,189,248,0.3);}
+  .done-btn{ color:var(--green); border-color:rgba(52,211,153,0.25); background:rgba(52,211,153,0.08); margin-left:8px;}
+  .done-btn:hover{ box-shadow:0 0 12px rgba(52,211,153,0.3);}
+  .clear-btn{ display:inline-flex; align-items:center; gap:6px; background:rgba(251,113,133,0.08); color:var(--red); padding:6px 14px; border-radius:7px; font-weight:700; font-size:.74rem; border:1px solid rgba(251,113,133,0.25); cursor:none;}
+  .clear-btn:hover{ box-shadow:0 0 12px rgba(251,113,133,0.25);}
 
-        .clear-btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            background: rgba(239,68,68,0.08);
-            color: #f87171;
-            padding: 6px 14px;
-            border-radius: 7px;
-            font-weight: 700;
-            font-size: 0.78rem;
-            text-decoration: none;
-            border: 1px solid rgba(239,68,68,0.2);
-            transition: all 0.2s;
-            letter-spacing: 0.5px;
-        }
-        .clear-btn:hover { background: rgba(239,68,68,0.15); border-color: var(--red); box-shadow: 0 0 12px rgba(239,68,68,0.2); }
+  .section-header{display:flex; align-items:center; justify-content:space-between; margin-bottom:1.2rem; flex-wrap:wrap; gap:.6rem;}
+  .section-title{font-size:1rem; font-weight:700; display:flex; align-items:center; gap:10px;}
+  .section-title i{color:var(--primary); width:18px;height:18px;}
+  .mono-tag{font-family:'JetBrains Mono'; font-size:.74rem; color:var(--muted); background:var(--surface2); padding:3px 9px; border-radius:5px; border:1px solid var(--border);}
 
-        /* ── SECTION HEADER ── */
-        .section-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 1.25rem;
-        }
-        .section-title {
-            font-size: 1rem;
-            font-weight: 700;
-            color: var(--text);
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        .section-title i { color: var(--primary); width: 18px; height: 18px; }
+  .order-item{display:flex; justify-content:space-between; align-items:center; padding:14px 16px; border-radius:12px; background:var(--surface2); border:1px solid var(--border); margin-bottom:10px;}
+  .order-item:hover{border-color:var(--border-strong);}
+  .order-name{font-weight:600; font-size:.86rem; margin-bottom:3px;}
+  .order-meta{font-size:.72rem; color:var(--muted); font-family:'JetBrains Mono';}
 
-        /* ── ORDER ITEM (student) ── */
-        .order-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 14px 16px;
-            border-radius: 10px;
-            background: var(--surface2);
-            border: 1px solid var(--border);
-            margin-bottom: 10px;
-            transition: all 0.2s;
-        }
-        .order-item:hover { border-color: var(--border2); transform: translateX(2px); }
-        .order-name { font-weight: 600; font-size: 0.875rem; color: var(--text); margin-bottom: 3px; }
-        .order-meta { font-size: 0.75rem; color: var(--muted); font-family: 'JetBrains Mono', monospace; }
+  .empty-state{text-align:center; padding:3rem 1rem; color:var(--muted);}
+  .empty-state i{width:38px;height:38px;margin-bottom:1rem;opacity:.3;}
+  .empty-state p{font-size:.85rem;}
 
-        /* ── PAYMENT MODAL ── */
-        #pay-overlay {
-            display: none;
-            position: fixed;
-            inset: 0;
-            background: rgba(0,0,0,0.8);
-            backdrop-filter: blur(8px);
-            z-index: 2000;
-            align-items: center;
-            justify-content: center;
-        }
-        .modal {
-            background: var(--surface);
-            border: 1px solid var(--border2);
-            padding: 2.5rem;
-            border-radius: 24px;
-            width: 380px;
-            text-align: center;
-            box-shadow: 0 0 60px rgba(59,130,246,0.2);
-            position: relative;
-        }
-        .modal::before {
-            content: '';
-            position: absolute;
-            top: 0; left: 20%; right: 20%;
-            height: 1px;
-            background: linear-gradient(90deg, transparent, var(--primary), transparent);
-        }
-        .modal h3 { font-size: 1.2rem; font-weight: 700; margin-bottom: 0.5rem; }
-        .modal-sub { color: var(--muted); font-size: 0.82rem; margin-bottom: 1.5rem; }
-        .modal-price {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 2.5rem;
-            font-weight: 700;
-            color: var(--primary2);
-            margin: 1.25rem 0;
-            text-shadow: 0 0 20px var(--glow);
-        }
-        .modal img { border-radius: 12px; border: 2px solid var(--border2); margin-bottom: 1.5rem; }
-        .modal-actions { display: flex; flex-direction: column; gap: 10px; }
-        .btn-cancel { background: transparent; color: var(--red); border: 1px solid rgba(239,68,68,0.2); border-radius: 10px; padding: 10px; cursor: pointer; font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 0.875rem; transition: all 0.2s; width: 100%; }
-        .btn-cancel:hover { background: rgba(239,68,68,0.1); }
+  /* PAYMENT MODAL */
+  #pay-overlay{display:none; position:fixed; inset:0; background:rgba(2,4,9,0.82); backdrop-filter:blur(10px); z-index:2000; align-items:center; justify-content:center;}
+  .modal{ position:relative; background:var(--surface-solid); border:1px solid var(--border-strong); padding:2.5rem; border-radius:22px; width:380px; max-width:90vw; text-align:center; box-shadow:0 0 70px rgba(56,189,248,0.2);}
+  .modal::before{content:''; position:absolute; top:0; left:18%; right:18%; height:1px; background:linear-gradient(90deg,transparent,var(--primary),transparent);}
+  .modal h3{font-family:'Orbitron'; font-size:1.1rem; margin-bottom:.5rem; letter-spacing:1px;}
+  .modal-sub{color:var(--muted); font-size:.8rem; margin-bottom:1.4rem;}
+  .modal-price{font-family:'JetBrains Mono'; font-size:2.4rem; font-weight:700; color:var(--primary2); margin:1.1rem 0; text-shadow:0 0 22px var(--glow);}
+  .modal-qr{width:150px;height:150px; margin:0 auto 1.4rem; border-radius:12px; border:2px solid var(--border-strong);
+    background:repeating-linear-gradient(45deg, #0d1320, #0d1320 6px, #131c2e 6px, #131c2e 12px); display:flex; align-items:center; justify-content:center; color:var(--muted); font-family:'JetBrains Mono'; font-size:.65rem;}
+  .modal-actions{display:flex; flex-direction:column; gap:10px;}
 
-        /* ── LOGIN PAGE ── */
-        .login-page {
-            width: 100%;
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: var(--bg);
-            position: relative;
-        }
-        .login-page::before {
-            content: '';
-            position: fixed;
-            inset: 0;
-            background:
-                radial-gradient(ellipse 60% 50% at 30% 40%, rgba(59,130,246,0.08) 0%, transparent 70%),
-                radial-gradient(ellipse 40% 40% at 70% 70%, rgba(245,158,11,0.05) 0%, transparent 70%);
-            pointer-events: none;
-        }
-        .login-box {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 24px;
-            padding: 3rem 2.5rem;
-            width: 420px;
-            position: relative;
-            box-shadow: 0 0 80px rgba(59,130,246,0.1);
-        }
-        .login-box::before {
-            content: '';
-            position: absolute;
-            top: 0; left: 15%; right: 15%;
-            height: 1px;
-            background: linear-gradient(90deg, transparent, var(--primary), transparent);
-        }
-        .login-logo {
-            text-align: center;
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 1.75rem;
-            font-weight: 700;
-            letter-spacing: 3px;
-            margin-bottom: 0.5rem;
-        }
-        .login-sub {
-            text-align: center;
-            color: var(--muted);
-            font-size: 0.82rem;
-            margin-bottom: 2.5rem;
-        }
-        .login-divider {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            margin: 1.25rem 0;
-        }
-        .login-divider span { font-size: 0.75rem; color: var(--muted); white-space: nowrap; }
-        .login-divider::before, .login-divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
-        .btn-signup {
-            background: transparent;
-            color: var(--primary2);
-            border: 1px solid rgba(59,130,246,0.3);
-            border-radius: 10px;
-            padding: 12px;
-            width: 100%;
-            cursor: pointer;
-            font-family: 'Space Grotesk', sans-serif;
-            font-weight: 600;
-            font-size: 0.9rem;
-            transition: all 0.2s;
-        }
-        .btn-signup:hover { background: rgba(59,130,246,0.08); border-color: var(--primary); }
+  /* signature: HUD readout strip */
+  .hud-strip{
+    display:flex; gap:1.2rem; flex-wrap:wrap; font-family:'JetBrains Mono'; font-size:.68rem; color:var(--muted);
+    border:1px solid var(--border); border-radius:10px; padding:.7rem 1rem; margin-bottom:1.5rem; letter-spacing:.5px;
+  }
+  .hud-strip b{color:var(--primary2); font-weight:700;}
 
-        /* ── STAFF ACTIVE BADGE ── */
-        .active-dot {
-            display: inline-block;
-            width: 8px; height: 8px;
-            background: var(--green);
-            border-radius: 50%;
-            margin-right: 6px;
-            box-shadow: 0 0 6px var(--green);
-            animation: pulse-dot 2s infinite;
-        }
-        @keyframes pulse-dot { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.6;transform:scale(0.85)} }
-
-        /* ── EMPTY STATE ── */
-        .empty-state {
-            text-align: center;
-            padding: 3rem 1rem;
-            color: var(--muted);
-        }
-        .empty-state i { width: 40px; height: 40px; margin-bottom: 1rem; opacity: 0.3; }
-        .empty-state p { font-size: 0.875rem; }
-
-        /* ── GLOW ACCENT ON STAFF CARD ── */
-        .staff-active-card {
-            border-left: 2px solid var(--primary);
-            box-shadow: -4px 0 20px rgba(59,130,246,0.1);
-        }
-
-        /* ── TOOLTIP-LIKE MONO TAG ── */
-        .mono-tag {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 0.78rem;
-            color: var(--muted);
-            background: var(--surface2);
-            padding: 2px 8px;
-            border-radius: 4px;
-            border: 1px solid var(--border);
-        }
-    </style>
+  @media (max-width:900px){
+    .sidebar{display:none;}
+    .main{margin-left:0; padding:1.5rem 1.2rem 5rem;}
+    .stats{grid-template-columns:1fr;}
+    .form-grid{grid-template-columns:1fr;}
+  }
+</style>
 </head>
 <body>
 
-{% if not session.get('user_id') %}
-<!-- ═══════════════ LOGIN PAGE ═══════════════ -->
-<div class="login-page">
-    <div class="login-box">
-        <div class="login-logo"><span style="color:var(--text)">PRINT</span><span style="color:var(--primary)">FLOW</span></div>
-        <p class="login-sub">JIIT Smart Printing Portal</p>
-        <form action="/auth" method="POST">
-            <div class="form-group">
-                <label class="form-label">JIIT Email</label>
-                <input type="email" name="email" placeholder="yourname@jiit.ac.in" required>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Password</label>
-                <input type="password" name="password" placeholder="••••••••••" required>
-            </div>
-            <button type="submit" name="action" value="login" class="btn btn-primary" style="margin-top:0.5rem;">
-                Sign In
-            </button>
-            <div class="login-divider"><span>or</span></div>
-            <button type="submit" name="action" value="signup" class="btn-signup">
-                Create Account
-            </button>
-        </form>
-    </div>
+<!-- CURSOR -->
+<div class="cursor-dot" id="cursorDot"></div>
+<div class="cursor-ring" id="cursorRing"></div>
+
+<!-- BACKGROUND FX -->
+<div class="bg-fx">
+  <div class="bg-grid" id="bgGrid"></div>
+  <div class="orb orb-1" data-speed="0.12" id="orb1"></div>
+  <div class="orb orb-2" data-speed="-0.08" id="orb2"></div>
+  <div class="orb orb-3" data-speed="0.18" id="orb3"></div>
+  <div class="orb orb-4" data-speed="-0.14" id="orb4"></div>
+  <div class="scanline"></div>
+  <div class="noise-vignette"></div>
 </div>
 
-{% else %}
-<!-- ═══════════════ APP SHELL ═══════════════ -->
+<!-- SCROLL HUD -->
+<div class="scroll-hud" id="scrollHud" style="display:none;">
+  <span class="pct mono">SCROLL</span>
+  <div class="track"><div class="fill" id="scrollFill"></div></div>
+  <span class="pct mono" id="scrollPct">000</span>
+</div>
 
-<nav class="sidebar">
-    <div class="logo">
-        <span class="bracket">[</span>
-        <span class="name">PRINT</span><span class="accent">FLOW</span>
-        <span class="bracket">]</span>
+<!-- ═══════════ LOGIN SCREEN ═══════════ -->
+<div id="loginScreen">
+  <div class="login-box tilt" id="loginBox">
+    <div class="corner tl"></div><div class="corner tr"></div><div class="corner bl"></div><div class="corner br"></div>
+    <div class="login-logo"><span class="lb">[</span><span class="lp">PRINT</span><span class="la">FLOW</span><span class="lb">]</span></div>
+    <div class="login-status"><span class="status-dot"></span>JIIT SMART PRINTING NETWORK — ONLINE</div>
+
+    <div class="role-toggle" id="loginRoleToggle" style="margin-bottom:1.8rem;">
+      <button type="button" id="loginRoleStudentBtn" class="active" onclick="setLoginRole('student')">STUDENT</button>
+      <button type="button" id="loginRoleStaffBtn" onclick="setLoginRole('staff')">STAFF</button>
+    </div>
+
+    <form id="loginForm" method="POST" action="/auth">
+      <input type="hidden" id="loginRole" name="role" value="student">
+      <input type="hidden" name="action" id="formAction" value="login">
+      <div id="loginError" class="login-error" style="display:none;"></div>
+      <div class="form-group">
+        <label class="form-label" id="loginEmailLabel">Jiit Email</label>
+        <input type="email" id="loginEmail" name="email" placeholder="yourname@jiit.ac.in" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input type="password" id="loginPassword" name="password" placeholder="••••••••••" required>
+      </div>
+      <button type="submit" class="btn btn-primary" data-action="login" id="loginSubmitBtn">
+        <i data-lucide="log-in" style="width:16px;height:16px;" id="loginIcon"></i> <span id="loginBtnText">Sign In as Student</span>
+      </button>
+      <div class="login-divider" id="signupDivider"><span>OR</span></div>
+      <button type="submit" class="btn btn-ghost" data-action="signup" id="signupBtn">
+        <i data-lucide="user-plus" style="width:16px;height:16px;"></i> Create Student Account
+      </button>
+    </form>
+  </div>
+</div>
+
+{% if logged_in %}
+<script>window.__PRINTFLOW_SESSION__ = {loggedIn:true, email:{{ email|tojson }}, role:{{ role|tojson }}};</script>
+{% else %}
+<script>window.__PRINTFLOW_SESSION__ = {loggedIn:false, email:null, role:null};</script>
+{% endif %}
+
+<!-- ═══════════ APP SHELL ═══════════ -->
+<div id="appShell">
+  <nav class="sidebar">
+    <div class="logo"><span class="b">[</span><span class="n">PRINT</span><span class="a">FLOW</span><span class="b">]</span></div>
+    <div class="sys-tag mono">SYS://JIIT-NODE-04 · v2.6</div>
+
+    <div class="role-toggle" style="pointer-events:none;">
+      <button id="roleStudentBtn" class="active" disabled>STUDENT</button>
+      <button id="roleStaffBtn" disabled>STAFF</button>
     </div>
 
     <span class="nav-label">Navigation</span>
-    <a href="/" class="nav-item {{ 'active' if active_page == 'dashboard' else '' }}">
-        <i data-lucide="layout-dashboard"></i> Dashboard
-    </a>
-    {% if session['role'] == 'student' %}
-    <a href="/my-orders" class="nav-item {{ 'active' if active_page == 'orders' else '' }}">
-        <i data-lucide="printer"></i> My Orders
-    </a>
-    {% endif %}
+    <button class="nav-item active" data-view="dashboard" id="navDashboard" onclick="setView('dashboard')">
+      <i data-lucide="layout-dashboard"></i> Dashboard
+    </button>
+    <button class="nav-item" data-view="orders" id="navOrders" onclick="setView('orders')">
+      <i data-lucide="printer"></i> My Orders
+    </button>
+    <button class="nav-item" data-view="staff" id="navStaff" style="display:none;" onclick="setView('staff')">
+      <i data-lucide="server-cog"></i> Staff Console
+    </button>
 
-    <a href="/logout" class="nav-logout">
-        <i data-lucide="log-out"></i> Sign Out
+    <a href="#" class="nav-item nav-logout" onclick="logout();return false;">
+      <i data-lucide="log-out"></i> Sign Out
     </a>
-</nav>
+  </nav>
 
-<main class="main">
+  <main class="main">
 
     <div class="page-header">
-        <h1>
-            {% if session['role'] == 'staff' %}Staff Console{% elif active_page == 'orders' %}My Print Orders{% else %}Print Dashboard{% endif %}
-        </h1>
-        <p>Signed in as <strong>{{ session['email'] }}</strong>
-        {% if session['role'] == 'staff' %}&nbsp;·&nbsp;<span style="color:var(--green);">Staff Access</span>{% endif %}
-        </p>
+      <div>
+        <h1 id="pageTitle">Print Dashboard</h1>
+        <p>Signed in as <strong id="sessionEmail">student@jiit.ac.in</strong></p>
+      </div>
+      <div class="session-tag"><span class="active-dot"></span><span id="sessionRole">STUDENT ACCESS</span></div>
     </div>
 
-    <!-- ─── STUDENT VIEW ─── -->
-    {% if session['role'] == 'student' %}
+    <!-- ─── DASHBOARD VIEW ─── -->
+    <section id="view-dashboard" class="view" style="display:none;">
+      <div class="hud-strip reveal">
+        <span>NODE: <b>JIIT-04</b></span><span>PRINTERS: <b>3/4 ONLINE</b></span><span>UPTIME: <b>99.8%</b></span><span>RATE: <b>₹3/pg B·W</b> · <b>₹11/pg COLOR</b></span>
+      </div>
 
-    <div class="stats">
-        <div class="stat-card">
-            <div class="stat-label"><span class="active-dot"></span>Live Queue</div>
-            <div class="stat-value" id="live-pages">0 Pages</div>
+      <div class="stats">
+        <div class="stat-card tilt reveal">
+          <div class="stat-label"><span class="active-dot"></span>Live Queue</div>
+          <div class="stat-value" id="live-pages">0 Pages</div>
         </div>
-        <div class="stat-card">
-            <div class="stat-label">Est. Wait Time</div>
-            <div class="stat-value accent" id="live-eta">-- mins</div>
+        <div class="stat-card tilt reveal">
+          <div class="stat-label">Est. Wait Time</div>
+          <div class="stat-value accent" id="live-eta">2 mins</div>
         </div>
-    </div>
+        <div class="stat-card tilt reveal">
+          <div class="stat-label">Your Orders</div>
+          <div class="stat-value violet" id="my-orders-count">0 Jobs</div>
+        </div>
+      </div>
 
-    {% if active_page == 'dashboard' %}
-    <div class="card">
+      <div class="card tilt reveal">
         <div class="section-header">
-            <div class="section-title">
-                <i data-lucide="upload-cloud"></i> New Print Job
-            </div>
+          <div class="section-title"><i data-lucide="upload-cloud"></i> New Print Job</div>
         </div>
-        <form id="uploadForm" action="/upload" method="POST" enctype="multipart/form-data">
+        <form id="uploadForm" onsubmit="return false;">
+          <div class="form-group">
+            <label class="form-label">PDF Document</label>
+            <input type="file" id="fileInput" accept=".pdf" required>
+          </div>
+          <div class="form-grid">
             <div class="form-group">
-                <label class="form-label">PDF Document</label>
-                <input type="file" name="file" accept=".pdf" required id="fileInput">
-            </div>
-           <div class="form-grid">
-                <div class="form-group">
-                    <label class="form-label">Color Mode</label>
-                    <select name="color_mode" id="colorMode">
-                        <option value="B/W">B&W — ₹3 / page</option>
-                        <option value="Color">Color — ₹11 / page</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Page Size</label>
-                    <select name="page_size">
-                        <option value="A4">A4</option>
-                        <option value="A3">A3</option>
-                    </select>
-                </div>
+              <label class="form-label">Color Mode</label>
+              <select id="colorMode">
+                <option value="B/W">B&amp;W — ₹3 / page</option>
+                <option value="Color">Color — ₹11 / page</option>
+              </select>
             </div>
             <div class="form-group">
-                <label class="form-label">Page Range <span style="color:var(--muted); font-weight:400; text-transform:none; letter-spacing:0;">(optional — e.g. 1-3, 5, 7-9 · leave blank for all)</span></label>
-                <input type="text" name="page_range" id="pageRange" placeholder="e.g. 1-3, 5, 7-9  or leave blank for all pages">
+              <label class="form-label">Page Size</label>
+              <select id="pageSize">
+                <option value="A4">A4</option>
+                <option value="A3">A3</option>
+              </select>
             </div>
-            <button type="button" onclick="showPayment()" class="btn btn-primary" style="margin-top:0.5rem;">
-                <i data-lucide="credit-card" style="width:16px;height:16px;"></i>
-                Review & Pay
-            </button>
+          </div>
+          <div class="form-group">
+            <label class="form-label-row">
+              <span class="form-label">Page Range</span>
+              <span class="hint">e.g. 1-3, 5, 7-9 · leave blank for all</span>
+            </label>
+            <input type="text" id="pageRange" placeholder="e.g. 1-3, 5, 7-9  or leave blank for all pages">
+          </div>
+          <button type="button" onclick="showPayment()" class="btn btn-primary" style="margin-top:.4rem;">
+            <i data-lucide="credit-card" style="width:16px;height:16px;"></i> Review &amp; Pay
+          </button>
         </form>
-    </div>
+      </div>
+    </section>
 
-    {% else %}
-    <div class="card">
+    <!-- ─── ORDERS VIEW (student) ─── -->
+    <section id="view-orders" class="view" style="display:none;">
+      <div class="card tilt reveal">
         <div class="section-header">
-            <div class="section-title"><i data-lucide="clock"></i> Order History</div>
+          <div class="section-title"><i data-lucide="clock"></i> Order History</div>
         </div>
         <div id="queue-list">
-            <div class="empty-state">
-                <i data-lucide="inbox"></i>
-                <p>Loading your orders…</p>
-            </div>
+          <div class="empty-state">
+            <i data-lucide="inbox"></i>
+            <p>No orders placed yet. Submit your first print job from the Dashboard.</p>
+          </div>
         </div>
-    </div>
-    {% endif %}
+      </div>
+    </section>
 
     <!-- ─── STAFF VIEW ─── -->
-    {% else %}
-
-    <div class="card staff-active-card">
+    <section id="view-staff" class="view" style="display:none;">
+      <div class="card tilt reveal" style="border-left:2px solid var(--primary); box-shadow:-4px 0 24px rgba(56,189,248,0.1);">
         <div class="section-header">
-            <div class="section-title">
-                <i data-lucide="zap"></i> Active Queue
-            </div>
-            <span class="mono-tag" id="queue-count">0 jobs</span>
+          <div class="section-title"><i data-lucide="zap"></i> Active Queue</div>
+          <span class="mono-tag" id="queue-count">0 jobs</span>
         </div>
         <table>
-            <thead>
-                <tr>
-                    <th>Student</th>
-                    <th>Config</th>
-                    <th>Pages</th>
-                    <th>Price</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% set active_jobs = jobs | selectattr('status', 'ne', 'Ready') | list %}
-                {% if active_jobs %}
-                    {% for j in active_jobs %}
-                    <tr>
-                        <td><strong>{{ j.student_email.split('@')[0] }}</strong></td>
-                        <td><span class="mono-tag">{{ j.page_size }} · {{ j.color_mode }}</span></td>
-                        <td><span class="mono-tag">{{ j.page_count }}pg</span></td>
-                        <td style="color:var(--accent2); font-family:'JetBrains Mono',monospace; font-weight:700;">₹{{ j.price }}</td>
-                        <td><span class="badge {{j.status}}">{{ j.status }}</span></td>
-                        <td>
-                            <a href="/view/{{ j.id }}" target="_blank" class="view-btn">
-                                <i data-lucide="eye" style="width:12px;height:12px;"></i> View
-                            </a>
-                            <a href="/update/{{ j.id }}/Ready" class="done-btn">
-                                <i data-lucide="check" style="width:12px;height:12px;"></i> Done
-                            </a>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                {% else %}
-                    <tr><td colspan="6">
-                        <div class="empty-state">
-                            <i data-lucide="check-circle-2"></i>
-                            <p>Queue is clear — no pending jobs.</p>
-                        </div>
-                    </td></tr>
-                {% endif %}
-            </tbody>
+          <thead><tr><th>Student</th><th>Config</th><th>Pages</th><th>Price</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="active-jobs-body">
+            <tr><td colspan="6"><div class="empty-state"><i data-lucide="check-circle-2"></i><p>Queue is clear — no pending jobs.</p></div></td></tr>
+          </tbody>
         </table>
-    </div>
+      </div>
 
-    <div class="card" style="opacity:0.85;">
+      <div class="card tilt reveal" style="opacity:.85;">
         <div class="section-header">
-            <div class="section-title">
-                <i data-lucide="archive"></i> Completed Jobs
-            </div>
-            <a href="/clear-ready" onclick="return confirm('Permanently delete all completed jobs?')" class="clear-btn">
-                <i data-lucide="trash-2" style="width:12px;height:12px;"></i> Clear All
-            </a>
+          <div class="section-title"><i data-lucide="archive"></i> Completed Jobs</div>
+          <a href="#" onclick="clearReady();return false;" class="clear-btn"><i data-lucide="trash-2" style="width:12px;height:12px;"></i> Clear All</a>
         </div>
         <table>
-            <thead>
-                <tr>
-                    <th>Student</th>
-                    <th>Config</th>
-                    <th>Price</th>
-                    <th>Status</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% set done_jobs = jobs | selectattr('status', 'eq', 'Ready') | list %}
-                {% if done_jobs %}
-                    {% for j in done_jobs %}
-                    <tr style="opacity:0.6;">
-                        <td>{{ j.student_email.split('@')[0] }}</td>
-                        <td><span class="mono-tag">{{ j.page_size }} · {{ j.color_mode }}</span></td>
-                        <td style="font-family:'JetBrains Mono',monospace;">₹{{ j.price }}</td>
-                        <td><span class="badge Ready">Ready</span></td>
-                    </tr>
-                    {% endfor %}
-                {% else %}
-                    <tr><td colspan="4">
-                        <div class="empty-state">
-                            <i data-lucide="inbox"></i>
-                            <p>No completed jobs yet.</p>
-                        </div>
-                    </td></tr>
-                {% endif %}
-            </tbody>
+          <thead><tr><th>Student</th><th>Config</th><th>Price</th><th>Status</th></tr></thead>
+          <tbody id="done-jobs-body">
+            <tr><td colspan="4"><div class="empty-state"><i data-lucide="inbox"></i><p>No completed jobs yet.</p></div></td></tr>
+          </tbody>
         </table>
-    </div>
+      </div>
+    </section>
 
-    {% endif %}
-</main>
+  </main>
+</div>
 
-<!-- ═══════════════ PAYMENT MODAL ═══════════════ -->
+<!-- PAYMENT MODAL -->
 <div id="pay-overlay">
-    <div class="modal">
-        <h3>Confirm Payment</h3>
-        <p class="modal-sub">Scan the QR below and complete payment before submitting.</p>
-        <div class="modal-price" id="modalPrice">₹ —</div>
-        <img src="https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=upi://pay?pa=jiit@upi&color=60a5fa&bgcolor=0d1320" width="160" height="160">
-        <div class="modal-actions">
-            <button onclick="document.getElementById('uploadForm').submit()" class="btn btn-primary">
-                <i data-lucide="check-circle" style="width:16px;height:16px;"></i> Payment Done — Submit Job
-            </button>
-            <button onclick="document.getElementById('pay-overlay').style.display='none'" class="btn-cancel">
-                Cancel
-            </button>
-        </div>
+  <div class="modal">
+    <h3>CONFIRM PAYMENT</h3>
+    <p class="modal-sub">Scan the QR below and complete payment before submitting.</p>
+    <div class="modal-price" id="modalPrice">₹ —</div>
+    <div class="modal-qr mono">[ QR CODE ]</div>
+    <div class="modal-actions">
+      <button onclick="submitJob()" class="btn btn-primary"><i data-lucide="check-circle" style="width:16px;height:16px;"></i> Payment Done — Submit Job</button>
+      <button onclick="closePayment()" class="btn btn-danger"><i data-lucide="x" style="width:16px;height:16px;"></i> Cancel</button>
     </div>
+  </div>
 </div>
 
 <script>
-    lucide.createIcons();
+lucide.createIcons();
 
-    function showPayment() {
-        if (!document.getElementById('fileInput').files[0]) return alert("Please select a PDF file first.");
-        const rate = document.getElementById('colorMode').value === 'Color' ? 11 : 3;
-        document.getElementById('modalPrice').innerText = "₹" + rate + " / page";
-        document.getElementById('pay-overlay').style.display = 'flex';
+/* ════════════════════ CUSTOM CURSOR ════════════════════ */
+const dot = document.getElementById('cursorDot');
+const ring = document.getElementById('cursorRing');
+let mx=innerWidth/2, my=innerHeight/2, rx=mx, ry=my;
+addEventListener('mousemove', e=>{ mx=e.clientX; my=e.clientY; dot.style.left=mx+'px'; dot.style.top=my+'px'; });
+(function loop(){ rx += (mx-rx)*0.18; ry += (my-ry)*0.18; ring.style.left=rx+'px'; ring.style.top=ry+'px'; requestAnimationFrame(loop); })();
+
+const interactiveSel = 'a, button, input, select, .card, .stat-card, .order-item, .nav-item, .login-box';
+document.body.addEventListener('mouseover', e=>{
+  if(e.target.closest(interactiveSel)) document.body.classList.add('cursor-active');
+  if(e.target.closest('.clear-btn,.btn-danger')) document.body.classList.add('cursor-danger');
+});
+document.body.addEventListener('mouseout', e=>{
+  if(e.target.closest(interactiveSel)) document.body.classList.remove('cursor-active');
+  if(e.target.closest('.clear-btn,.btn-danger')) document.body.classList.remove('cursor-danger');
+});
+
+/* ════════════════════ TILT + MAGNETIC ════════════════════ */
+document.querySelectorAll('.tilt').forEach(el=>{
+  el.addEventListener('mousemove', e=>{
+    const r = el.getBoundingClientRect();
+    const px = (e.clientX - r.left)/r.width - 0.5;
+    const py = (e.clientY - r.top)/r.height - 0.5;
+    el.style.transform = `perspective(900px) rotateX(${(-py*5).toFixed(2)}deg) rotateY(${(px*6).toFixed(2)}deg) translateZ(0)`;
+  });
+  el.addEventListener('mouseleave', ()=>{ el.style.transform=''; });
+});
+document.querySelectorAll('.btn-primary').forEach(btn=>{
+  btn.addEventListener('mousemove', e=>{
+    const r = btn.getBoundingClientRect();
+    const dx = (e.clientX - (r.left+r.width/2))*0.12;
+    const dy = (e.clientY - (r.top+r.height/2))*0.25;
+    btn.style.transform = `translate(${dx}px,${dy}px)`;
+  });
+  btn.addEventListener('mouseleave', ()=>{ btn.style.transform=''; });
+});
+
+/* ════════════════════ PARALLAX (scroll + mouse) ════════════════════ */
+const orbs = document.querySelectorAll('.orb');
+function applyParallax(){
+  const sy = window.scrollY;
+  orbs.forEach(o=>{
+    const sp = parseFloat(o.dataset.speed);
+    o.style.transform = `translateY(${sy*sp}px) translateX(${(mx-innerWidth/2)*0.01*sp*10}px)`;
+  });
+  document.getElementById('bgGrid').style.transform = `translateY(${sy*0.04}px) translateX(${(mx-innerWidth/2)*0.01}px)`;
+}
+addEventListener('scroll', applyParallax);
+addEventListener('mousemove', applyParallax);
+applyParallax();
+
+/* login box subtle mouse parallax */
+addEventListener('mousemove', e=>{
+  if(document.getElementById('loginScreen').style.display==='none') return;
+  const dx = (e.clientX/innerWidth - 0.5)*10;
+  const dy = (e.clientY/innerHeight - 0.5)*10;
+  document.getElementById('loginBox').style.transform = `perspective(900px) rotateX(${-dy*0.4}deg) rotateY(${dx*0.4}deg)`;
+});
+
+/* ════════════════════ SCROLL PROGRESS HUD ════════════════════ */
+const hud = document.getElementById('scrollHud');
+function updateHud(){
+  const h = document.documentElement;
+  const pct = h.scrollTop / (h.scrollHeight - h.clientHeight || 1);
+  document.getElementById('scrollFill').style.height = (pct*100)+'%';
+  document.getElementById('scrollPct').innerText = String(Math.round(pct*100)).padStart(3,'0');
+}
+addEventListener('scroll', updateHud);
+
+/* ════════════════════ REVEAL ON SCROLL ════════════════════ */
+const io = new IntersectionObserver((entries)=>{
+  entries.forEach((en,i)=>{
+    if(en.isIntersecting){ setTimeout(()=>en.target.classList.add('in'), i*70); io.unobserve(en.target); }
+  });
+}, {threshold:0.15});
+function observeReveals(){ document.querySelectorAll('.reveal:not(.in)').forEach(el=>io.observe(el)); }
+observeReveals();
+
+/* ════════════════════ REAL AUTH / SESSION ════════════════════ */
+let role = 'student';
+let currentEmail = '';
+let loginRole = 'student';
+let jobs = [];           // hydrated from the server, not faked client-side
+let pollTimer = null;
+
+function setLoginRole(r){
+  loginRole = r;
+  document.getElementById('loginRole').value = r;
+  document.getElementById('loginRoleStudentBtn').classList.toggle('active', r==='student');
+  document.getElementById('loginRoleStaffBtn').classList.toggle('active', r==='staff');
+  const emailInput = document.getElementById('loginEmail');
+  const emailLabel = document.getElementById('loginEmailLabel');
+  const btnText = document.getElementById('loginBtnText');
+  const signupBtn = document.getElementById('signupBtn');
+  const signupDivider = document.getElementById('signupDivider');
+  if(r==='staff'){
+    emailLabel.innerText = 'Staff Email';
+    emailInput.placeholder = 'staff@jiit.ac.in';
+    btnText.innerText = 'Sign In as Staff';
+    signupBtn.style.display = 'none';
+    signupDivider.style.display = 'none';
+  } else {
+    emailLabel.innerText = 'Jiit Email';
+    emailInput.placeholder = 'yourname@jiit.ac.in';
+    btnText.innerText = 'Sign In as Student';
+    signupBtn.style.display = '';
+    signupDivider.style.display = '';
+  }
+  hideLoginError();
+}
+
+function showLoginError(msg){
+  const el = document.getElementById('loginError');
+  el.innerText = msg;
+  el.style.display = 'block';
+}
+function hideLoginError(){
+  document.getElementById('loginError').style.display = 'none';
+}
+
+let pendingAction = 'login';
+document.getElementById('loginSubmitBtn').addEventListener('click', ()=>{ pendingAction = 'login'; });
+document.getElementById('signupBtn').addEventListener('click', ()=>{ pendingAction = 'signup'; });
+
+document.getElementById('loginForm').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  hideLoginError();
+  document.getElementById('formAction').value = pendingAction;
+  const form = e.target;
+  const fd = new FormData(form);
+  const submitBtns = form.querySelectorAll('button[type=submit]');
+  submitBtns.forEach(b=>b.disabled=true);
+  try{
+    const res = await fetch('/auth', { method:'POST', body: fd });
+    if(res.redirected || res.ok){
+      // /auth redirects to '/' on success; reload so the server-rendered
+      // session bootstrap (window.__PRINTFLOW_SESSION__) takes over.
+      window.location.href = '/';
+      return;
     }
+    const text = await res.text();
+    const match = text.match(/<p>(.*?)<\/p>/s);
+    showLoginError(match ? match[1].replace(/<[^>]+>/g,'') : 'Sign in failed. Please check your credentials.');
+  } catch(err){
+    showLoginError('Network error — could not reach the server.');
+  } finally {
+    submitBtns.forEach(b=>b.disabled=false);
+  }
+});
 
-    async function sync() {
-        try {
-            const r = await fetch('/api/queue');
-            const jobs = await r.json();
-            let html = '';
-            let activePages = 0;
-            const email = "{{ session['email'] }}";
+function enterApp(email, r){
+  currentEmail = email;
+  role = r;
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('appShell').style.display = 'block';
+  hud.style.display = 'flex';
+  applyRoleUI(role);
+  setView(role==='staff' ? 'staff' : 'dashboard');
+  document.getElementById('sessionEmail').innerText = currentEmail;
+  observeReveals();
+  refreshQueue();
+  if(pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(refreshQueue, 4000);
+}
 
-            jobs.forEach(j => {
-                if (j.status !== 'Ready') activePages += j.page_count;
-                if (j.student_email === email) {
-                    const rawName = j.file_url.split('/').pop().split('_').slice(2).join('_');
-                    const name = decodeURIComponent(rawName) || 'Document';
-                    html += `
-                    <div class="order-item">
-                        <div>
-                            <div class="order-name">${name}</div>
-                            <div class="order-meta">₹${j.price} &nbsp;·&nbsp; ETA: ${j.eta} &nbsp;·&nbsp; ${j.color_mode} &nbsp;·&nbsp; ${j.page_size}</div>
-                        </div>
-                        <span class="badge ${j.status}">${j.status}</span>
-                    </div>`;
-                }
-            });
+/* Sets the read-only post-login role display. This is NOT switchable in-app —
+   role is fixed at login time by which credentials/tab were used, and enforced
+   server-side in /auth. */
+function applyRoleUI(r){
+  document.getElementById('roleStudentBtn').classList.toggle('active', r==='student');
+  document.getElementById('roleStaffBtn').classList.toggle('active', r==='staff');
+  document.getElementById('navDashboard').style.display = r==='student' ? 'flex' : 'none';
+  document.getElementById('navOrders').style.display = r==='student' ? 'flex' : 'none';
+  document.getElementById('navStaff').style.display = r==='staff' ? 'flex' : 'none';
+  document.getElementById('sessionRole').innerText = r==='staff' ? 'STAFF ACCESS' : 'STUDENT ACCESS';
+}
 
-            const livePages = document.getElementById('live-pages');
-            const liveEta   = document.getElementById('live-eta');
-            const queueList = document.getElementById('queue-list');
-            const queueCount = document.getElementById('queue-count');
+async function logout(){
+  if(pollTimer) clearInterval(pollTimer);
+  try{ await fetch('/logout'); }catch(e){}
+  window.location.href = '/';
+}
 
-            if (livePages) livePages.innerText = activePages + " Pages";
-            if (liveEta) liveEta.innerText = Math.max(2, Math.floor(activePages / 5) + 2) + " mins";
-            if (queueList) queueList.innerHTML = html || `
-                <div class="empty-state">
-                    <i data-lucide="inbox"></i>
-                    <p>No orders placed yet. Submit your first print job from the Dashboard.</p>
-                </div>`;
-            if (queueCount) {
-                const active = jobs.filter(j => j.status !== 'Ready').length;
-                queueCount.innerText = active + " job" + (active !== 1 ? 's' : '');
-            }
-            lucide.createIcons();
-        } catch(e) {}
+/* On load: trust the server's session state, not client memory. */
+(function bootstrapSession(){
+  const s = window.__PRINTFLOW_SESSION__ || {loggedIn:false};
+  if(s.loggedIn){
+    enterApp(s.email, s.role);
+  } else {
+    setLoginRole('student');
+  }
+})();
+
+function setView(v){
+  document.querySelectorAll('.view').forEach(el=>el.style.display='none');
+  document.getElementById('view-'+v).style.display='block';
+  document.querySelectorAll('.nav-item[data-view]').forEach(el=>el.classList.toggle('active', el.dataset.view===v));
+  const titles = {dashboard:'Print Dashboard', orders:'My Print Orders', staff:'Staff Console'};
+  document.getElementById('pageTitle').innerText = titles[v];
+  observeReveals();
+  render();
+}
+
+function showPayment(){
+  const f = document.getElementById('fileInput').files[0];
+  if(!f){ alert('Please select a PDF file first.'); return; }
+  document.getElementById('modalPrice').innerText = 'Calculating…';
+  document.getElementById('pay-overlay').style.display='flex';
+  document.getElementById('modalPrice').dataset.ready = '0';
+  // Real page count/price are computed server-side from the actual PDF in /upload.
+  // We don't know the exact price until upload completes, so we show an estimate
+  // based on a quick local page-range parse against the color rate only.
+  const range = document.getElementById('pageRange').value;
+  const rate = document.getElementById('colorMode').value === 'Color' ? 11 : 3;
+  document.getElementById('modalPrice').innerText = range ? `₹${rate}/pg × selected pages` : `₹${rate}/pg × all pages`;
+}
+function closePayment(){ document.getElementById('pay-overlay').style.display='none'; }
+
+async function submitJob(){
+  const f = document.getElementById('fileInput').files[0];
+  if(!f){ alert('Please select a PDF file first.'); return; }
+  const fd = new FormData();
+  fd.append('file', f);
+  fd.append('color_mode', document.getElementById('colorMode').value);
+  fd.append('page_size', document.getElementById('pageSize').value);
+  fd.append('page_range', document.getElementById('pageRange').value);
+
+  const payBtn = document.querySelector('#pay-overlay .btn-primary');
+  payBtn.disabled = true;
+  const origText = payBtn.innerHTML;
+  payBtn.innerHTML = 'Uploading…';
+  try{
+    const res = await fetch('/upload', { method:'POST', body: fd });
+    const data = await res.json();
+    if(!res.ok || data.error){
+      alert('Upload failed: ' + (data.error || 'Unknown error'));
+      return;
     }
+    closePayment();
+    document.getElementById('uploadForm').reset();
+    setView('orders');
+    await refreshQueue();
+  } catch(err){
+    alert('Network error during upload.');
+  } finally {
+    payBtn.disabled = false;
+    payBtn.innerHTML = origText;
+  }
+}
 
-    setInterval(sync, 4000);
-    sync();
+async function clearReady(){
+  try{
+    const res = await fetch('/clear-ready');
+    const data = await res.json();
+    if(data.error){ alert(data.error); return; }
+    await refreshQueue();
+  } catch(err){ alert('Network error.'); }
+}
+
+async function refreshQueue(){
+  try{
+    const res = await fetch('/api/queue');
+    if(res.status===401){ window.location.href='/'; return; }
+    const data = await res.json();
+    if(Array.isArray(data)) jobs = data;
+    render();
+  } catch(err){ /* keep last known state on transient network errors */ }
+}
+
+/* print_jobs has no file_name column — derive a readable name from the
+   storage URL instead (strip our "pdf_<timestamp>_" prefix). */
+function displayFileName(j){
+  if(!j.file_url) return 'document.pdf';
+  try{
+    const raw = decodeURIComponent(j.file_url.split('/').pop());
+    return raw.replace(/^pdf_\d+_/, '') || raw;
+  } catch(e){
+    return 'document.pdf';
+  }
+}
+
+function render(){
+  // stats
+  const activePages = jobs.filter(j=>j.status!=='Ready').reduce((s,j)=>s+j.page_count,0);
+  const livePages = document.getElementById('live-pages');
+  const liveEta = document.getElementById('live-eta');
+  if(livePages) livePages.innerText = activePages + ' Pages';
+  if(liveEta) liveEta.innerText = Math.max(2, Math.floor(activePages/5)+2) + ' mins';
+  const mine = jobs.filter(j=>j.student_email===currentEmail);
+  const myCount = document.getElementById('my-orders-count');
+  if(myCount) myCount.innerText = mine.length + ' Job' + (mine.length!==1?'s':'');
+
+  // orders (student)
+  const queueList = document.getElementById('queue-list');
+  if(queueList){
+    if(mine.length){
+      queueList.innerHTML = mine.map(j=>`
+        <div class="order-item tilt reveal in">
+          <div>
+            <div class="order-name">${displayFileName(j)}</div>
+            <div class="order-meta">₹${j.price} &nbsp;·&nbsp; ETA: ${j.eta} &nbsp;·&nbsp; ${j.color_mode} &nbsp;·&nbsp; ${j.page_size}</div>
+          </div>
+          <span class="badge ${j.status}">${j.status}</span>
+        </div>`).join('');
+    } else {
+      queueList.innerHTML = `<div class="empty-state"><i data-lucide="inbox"></i><p>No orders placed yet. Submit your first print job from the Dashboard.</p></div>`;
+    }
+  }
+
+  // staff active
+  const activeBody = document.getElementById('active-jobs-body');
+  if(activeBody){
+    const active = jobs.filter(j=>j.status!=='Ready');
+    document.getElementById('queue-count').innerText = active.length + ' job' + (active.length!==1?'s':'');
+    activeBody.innerHTML = active.length ? active.map(j=>`
+      <tr>
+        <td><strong>${(j.student_email||'').split('@')[0]}</strong></td>
+        <td><span class="mono-tag">${j.page_size} · ${j.color_mode}</span></td>
+        <td><span class="mono-tag">${j.page_count}pg</span></td>
+        <td style="color:var(--gold2);font-family:'JetBrains Mono';font-weight:700;">₹${j.price}</td>
+        <td><span class="badge ${j.status}">${j.status}</span></td>
+        <td>
+          <a href="/view/${j.id}" target="_blank" class="view-btn"><i data-lucide="eye" style="width:12px;height:12px;"></i> View</a>
+          ${j.status==='Queued' ? `<a href="#" class="done-btn" onclick="advanceStatus(${j.id},'Printing');return false;"><i data-lucide="printer" style="width:12px;height:12px;"></i> Start</a>` : ''}
+          ${j.status==='Printing' ? `<a href="#" class="done-btn" onclick="advanceStatus(${j.id},'Ready');return false;"><i data-lucide="check" style="width:12px;height:12px;"></i> Done</a>` : ''}
+        </td>
+      </tr>`).join('') : `<tr><td colspan="6"><div class="empty-state"><i data-lucide="check-circle-2"></i><p>Queue is clear — no pending jobs.</p></div></td></tr>`;
+  }
+
+  // staff done
+  const doneBody = document.getElementById('done-jobs-body');
+  if(doneBody){
+    const done = jobs.filter(j=>j.status==='Ready');
+    doneBody.innerHTML = done.length ? done.map(j=>`
+      <tr style="opacity:.6;">
+        <td>${(j.student_email||'').split('@')[0]}</td>
+        <td><span class="mono-tag">${j.page_size} · ${j.color_mode}</span></td>
+        <td style="font-family:'JetBrains Mono';">₹${j.price}</td>
+        <td><span class="badge Ready">Ready</span></td>
+      </tr>`).join('') : `<tr><td colspan="4"><div class="empty-state"><i data-lucide="inbox"></i><p>No completed jobs yet.</p></div></td></tr>`;
+  }
+
+  lucide.createIcons();
+}
+
+async function advanceStatus(id, status){
+  try{
+    const res = await fetch(`/update/${id}/${status}`);
+    const data = await res.json();
+    if(data.error){ alert(data.error); return; }
+    await refreshQueue();
+  } catch(err){ alert('Network error.'); }
+}
+
 </script>
-
-{% endif %}
 </body>
 </html>
+
 """
 
 # --- ROUTES ---
 @app.route('/')
 def index():
-    jobs = []
-    if session.get('role') == 'staff':
-        jobs = supabase.table('print_jobs').select("*").order('created_at', desc=True).execute().data
-    return render_template_string(HTML_TEMPLATE, jobs=jobs, active_page="dashboard")
+    logged_in = 'role' in session and 'email' in session
+    return render_template_string(
+        HTML_TEMPLATE,
+        logged_in=logged_in,
+        email=session.get('email'),
+        role=session.get('role'),
+        active_page="dashboard"
+    )
 
 @app.route('/my-orders')
 def my_orders():
-    return render_template_string(HTML_TEMPLATE, active_page="orders")
+    logged_in = 'role' in session and 'email' in session
+    return render_template_string(
+        HTML_TEMPLATE,
+        logged_in=logged_in,
+        email=session.get('email'),
+        role=session.get('role'),
+        active_page="orders"
+    )
+
+# Staff accounts are explicitly allow-listed. Add additional staff emails here
+# (or better: look this up from a 'staff' table in Supabase keyed by user id/email).
+STAFF_EMAILS = {"staff@jiit.ac.in"}
 
 @app.route('/auth', methods=['POST'])
 def auth():
     email = request.form['email'].strip().lower()
     pwd = request.form['password']
     action = request.form['action']
+    requested_role = request.form.get('role', 'student').strip().lower()
+    if requested_role not in ('student', 'staff'):
+        requested_role = 'student'
+
+    # Server-side authority on role: never trust the client's tab selection alone.
+    # A user is only ever staff if their email is allow-listed as staff.
+    actual_role = 'staff' if email in STAFF_EMAILS else 'student'
+
+    if requested_role == 'staff' and actual_role != 'staff':
+        return "<h1>Access Denied</h1><p>This account is not authorized for staff access.</p><br><a href='/'>Go Back</a>", 403
+    if requested_role == 'student' and actual_role == 'staff':
+        # Staff account trying to sign in through the student tab — also reject,
+        # since the two logins are meant to be kept separate.
+        return "<h1>Access Denied</h1><p>Please sign in using the Staff tab.</p><br><a href='/'>Go Back</a>", 403
+
     try:
         if action == "signup":
+            if actual_role == 'staff':
+                return "<h1>Signup Disabled</h1><p>Staff accounts are provisioned by admins, not self-signup.</p><br><a href='/'>Go Back</a>", 403
             res = supabase.auth.sign_up({"email": email, "password": pwd})
         else:
             res = supabase.auth.sign_in_with_password({"email": email, "password": pwd})
-        role = 'staff' if email == 'staff@jiit.ac.in' else 'student'
-        print("\n--- LOGIN DEBUG INFO ---")
-        print(f"Raw Email Typed: [{email}]")
-        print(f"Role Assigned:   [{role}]")
-        print("------------------------\n")
-        session.update({'user_id': str(res.user.id), 'email': email, 'role': role})
+        session.update({'user_id': str(res.user.id), 'email': email, 'role': actual_role})
         return redirect('/')
     except Exception as e:
         print(f"SUPABASE ERROR: {e}")
@@ -1018,16 +1033,23 @@ def auth():
 
 @app.route('/view/<job_id>')
 def view_file(job_id):
+    if 'role' not in session:
+        return jsonify({"error": "Not authenticated"}), 401
     try:
-        job = supabase.table('print_jobs').select("file_url").eq("id", job_id).single().execute()
+        job = supabase.table('print_jobs').select("file_url,student_email").eq("id", job_id).single().execute()
         if not job.data:
             return f"<h1>No job found for ID: {job_id}</h1>", 404
+        # students may only open their own jobs
+        if session['role'] != 'staff' and job.data.get('student_email') != session.get('email'):
+            return jsonify({"error": "Forbidden"}), 403
         return redirect(job.data['file_url'])
     except Exception as e:
         return f"<h1>Error for ID [{job_id}]:</h1><p>{e}</p><br><a href='/'>Go Back</a>", 500
 
 @app.route('/upload', methods=['POST'])
 def upload():
+    if session.get('role') != 'student':
+        return jsonify({"error": "Only student accounts can submit print jobs."}), 403
     try:
         file = request.files['file']
         color_mode = request.form.get('color_mode', 'B/W')
@@ -1045,30 +1067,42 @@ def upload():
         with open(final_path, 'rb') as f:
             supabase.storage.from_('print-files').upload(storage_name, f, {"content-type": "application/pdf"})
         url = supabase.storage.from_('print-files').get_public_url(storage_name)
-        supabase.table('print_jobs').insert({
-            "student_email": session['email'], "file_url": url, "page_count": count,
-            "price": total_price, "color_mode": color_mode, "eta": f"{eta_val}m",
-            "page_size": request.form.get('page_size', 'A4'), "status": "Queued"
+        inserted = supabase.table('print_jobs').insert({
+            "student_email": session['email'], "file_url": url,
+            "page_count": count, "price": total_price, "color_mode": color_mode,
+            "eta": f"{eta_val}m", "page_size": request.form.get('page_size', 'A4'), "status": "Queued"
         }).execute()
-        return redirect('/my-orders')
+        return jsonify({"ok": True, "job": inserted.data[0] if inserted.data else None})
     except Exception as e:
         print(f"\n--- UPLOAD ERROR --- \n{e}\n--------------------\n")
-        return f"<h1>Upload Failed:</h1><p>{e}</p><br><a href='/'>Go Back</a>"
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/queue')
 def get_queue():
-    res = supabase.table('print_jobs').select("*").execute()
+    if 'role' not in session:
+        return jsonify({"error": "Not authenticated"}), 401
+    query = supabase.table('print_jobs').select("*").order('created_at', desc=True)
+    if session['role'] != 'staff':
+        # students only ever see their own jobs, never the whole queue
+        query = query.eq('student_email', session['email'])
+    res = query.execute()
     return jsonify(res.data)
 
 @app.route('/update/<int:job_id>/<status>')
 def update_status(job_id, status):
+    if session.get('role') != 'staff':
+        return jsonify({"error": "Only staff can update job status."}), 403
+    if status not in ('Queued', 'Printing', 'Ready'):
+        return jsonify({"error": "Invalid status."}), 400
     supabase.table('print_jobs').update({"status": status}).eq("id", job_id).execute()
-    return redirect('/')
+    return jsonify({"ok": True})
 
 @app.route('/clear-ready')
 def clear_ready():
+    if session.get('role') != 'staff':
+        return jsonify({"error": "Only staff can clear completed jobs."}), 403
     supabase.table('print_jobs').delete().eq("status", "Ready").execute()
-    return redirect('/')
+    return jsonify({"ok": True})
 
 @app.route('/logout')
 def logout():
