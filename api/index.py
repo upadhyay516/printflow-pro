@@ -12,11 +12,11 @@ app = Flask(__name__)
 
 # Locally: values come from .env (see .env.example). On Vercel: Project Settings -> Environment Variables.
 # (No hardcoded fallback — this repo is public, so a hardcoded key is a public key.)
-app.secret_key = os.environ.get("FLASK_SECRET_KEY")
+app.secret_key = os.environ.get("FLASK_SECRET_KEY", "d1cca308bd5845d897e3dce2a8baa1e91350fbda0f2cddcb5e627dc8510c6a69")
 
 # --- CONFIGURATION ---
-SUPABASE_URL = os.environ.get("SUPABASE_URL")
-SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
+SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://qsfwlyucognzoojijgul.supabase.co")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFzZndseXVjb2duem9vamlqZ3VsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwNjUwNjgsImV4cCI6MjA5NjY0MTA2OH0.WeipU_k1_Rm6M97gC7LMsjbFspjVRDiPOnAHreeNATc")
 
 if not app.secret_key or not SUPABASE_URL or not SUPABASE_KEY:
     raise RuntimeError(
