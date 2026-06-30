@@ -3,11 +3,21 @@ from flask import Flask, request, render_template_string, redirect, url_for, ses
 from supabase import create_client
 
 app = Flask(__name__)
-app.secret_key = "JIIT_PRINTFLOW_FINAL_ULTIMATE_V2026_FIXED"
+
+# Secrets must be set in Vercel: Project Settings -> Environment Variables.
+# (No hardcoded fallback — this repo is public, so a hardcoded key is a public key.)
+app.secret_key = os.environ.get("FLASK_SECRET_KEY")
 
 # --- CONFIGURATION ---
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://qsfwlyucognzoojijgul.supabase.co")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFzZndseXVjb2duem9vamlqZ3VsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwNjUwNjgsImV4cCI6MjA5NjY0MTA2OH0.WeipU_k1_Rm6M97gC7LMsjbFspjVRDiPOnAHreeNATc")
+
+if not app.secret_key or not SUPABASE_URL or not SUPABASE_KEY:
+    raise RuntimeError(
+        "Missing FLASK_SECRET_KEY / SUPABASE_URL / SUPABASE_KEY environment variables. "
+        "Set them in Vercel under Project Settings > Environment Variables."
+    )
+
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # --- PDF PROCESSING ENGINE ---
