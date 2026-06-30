@@ -60,7 +60,7 @@ HTML_TEMPLATE = """
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>PRINTFLOW // JIIT Smart Printing Network</title>
 <link rel="icon" href="data:,">
 <script src="https://unpkg.com/lucide@latest"></script>
@@ -377,11 +377,54 @@ HTML_TEMPLATE = """
   }
   .hud-strip b{color:var(--primary2); font-weight:700;}
 
+  /* ───────────────────────── HAMBURGER + MOBILE SIDEBAR ───────────────────────── */
+  .hamburger{
+    display:none; position:fixed; top:1.1rem; left:1.1rem; z-index:70;
+    width:44px; height:44px; align-items:center; justify-content:center;
+    background:var(--surface-solid); border:1px solid var(--border-strong);
+    border-radius:10px; cursor:pointer;
+  }
+  .hamburger i{width:20px; height:20px; color:var(--primary2);}
+  .sidebar-overlay{
+    display:none; position:fixed; inset:0; z-index:45;
+    background:rgba(2,4,9,0.6); backdrop-filter:blur(4px);
+  }
+  .sidebar-overlay.open{display:block;}
+
   @media (max-width:900px){
-    .sidebar{display:none;}
-    .main{margin-left:0; padding:1.5rem 1.2rem 5rem;}
+    .hamburger{display:flex;}
+    .sidebar{
+      display:flex; transform:translateX(-100%);
+      transition:transform .28s ease; z-index:80; width:78vw; max-width:300px;
+    }
+    .sidebar.open{transform:translateX(0);}
+    .main{margin-left:0; padding:5.5rem 1.1rem 5rem;}
     .stats{grid-template-columns:1fr;}
     .form-grid{grid-template-columns:1fr;}
+    .page-header{flex-direction:column; align-items:flex-start;}
+    .page-header h1{font-size:1.35rem;}
+    .stat-value{font-size:1.4rem;}
+    .login-box{padding:2.1rem 1.5rem;}
+    .scroll-hud{display:none !important;}
+    .modal{padding:2rem 1.4rem;}
+  }
+
+  @media (max-width:600px){
+    .login-logo{font-size:1.5rem; letter-spacing:2px;}
+    .modal-qr{width:120px; height:120px;}
+    .modal-price{font-size:1.9rem;}
+
+    table thead{display:none;}
+    table, tbody, tr, td{display:block; width:100%;}
+    tbody tr{
+      border:1px solid var(--border); border-radius:12px; padding:.8rem 1rem;
+      margin-bottom:10px; background:var(--surface2);
+    }
+    td{padding:6px 0; display:flex; justify-content:space-between; align-items:center; font-size:.8rem; gap:.6rem;}
+    td::before{content:attr(data-label); color:var(--muted); font-size:.66rem; text-transform:uppercase; letter-spacing:1px; flex-shrink:0;}
+    td:empty{display:none;}
+    td .empty-state{width:100%;}
+    td:has(.empty-state)::before{display:none;}
   }
 </style>
 </head>
@@ -452,7 +495,11 @@ HTML_TEMPLATE = """
 
 <!-- ═══════════ APP SHELL ═══════════ -->
 <div id="appShell">
-  <nav class="sidebar">
+  <button class="hamburger" id="hamburgerBtn" onclick="toggleSidebar()">
+    <i data-lucide="menu"></i>
+  </button>
+  <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+  <nav class="sidebar" id="sidebarNav">
     <div class="logo"><span class="b">[</span><span class="n">PRINT</span><span class="a">FLOW</span><span class="b">]</span></div>
     <div class="sys-tag mono">SYS://JIIT-NODE-04 · v2.6</div>
 
@@ -689,6 +736,20 @@ const io = new IntersectionObserver((entries)=>{
 function observeReveals(){ document.querySelectorAll('.reveal:not(.in)').forEach(el=>io.observe(el)); }
 observeReveals();
 
+/* ════════════════════ MOBILE HAMBURGER MENU ════════════════════ */
+function toggleSidebar(){
+  const isOpen = document.getElementById('sidebarNav').classList.toggle('open');
+  document.getElementById('sidebarOverlay').classList.toggle('open', isOpen);
+  document.getElementById('hamburgerBtn').innerHTML = `<i data-lucide="${isOpen ? 'x' : 'menu'}"></i>`;
+  lucide.createIcons();
+}
+function closeSidebar(){
+  document.getElementById('sidebarNav').classList.remove('open');
+  document.getElementById('sidebarOverlay').classList.remove('open');
+  document.getElementById('hamburgerBtn').innerHTML = `<i data-lucide="menu"></i>`;
+  lucide.createIcons();
+}
+
 /* ════════════════════ REAL AUTH / SESSION ════════════════════ */
 let role = 'student';
 let currentEmail = '';
@@ -805,6 +866,7 @@ async function logout(){
 })();
 
 function setView(v){
+  closeSidebar();
   document.querySelectorAll('.view').forEach(el=>el.style.display='none');
   document.getElementById('view-'+v).style.display='block';
   document.querySelectorAll('.nav-item[data-view]').forEach(el=>el.classList.toggle('active', el.dataset.view===v));
@@ -927,12 +989,12 @@ function render(){
     document.getElementById('queue-count').innerText = active.length + ' job' + (active.length!==1?'s':'');
     activeBody.innerHTML = active.length ? active.map(j=>`
       <tr>
-        <td><strong>${(j.student_email||'').split('@')[0]}</strong></td>
-        <td><span class="mono-tag">${j.page_size} · ${j.color_mode}</span></td>
-        <td><span class="mono-tag">${j.page_count}pg</span></td>
-        <td style="color:var(--gold2);font-family:'JetBrains Mono';font-weight:700;">₹${j.price}</td>
-        <td><span class="badge ${j.status}">${j.status}</span></td>
-        <td>
+        <td data-label="Student"><strong>${(j.student_email||'').split('@')[0]}</strong></td>
+        <td data-label="Config"><span class="mono-tag">${j.page_size} · ${j.color_mode}</span></td>
+        <td data-label="Pages"><span class="mono-tag">${j.page_count}pg</span></td>
+        <td data-label="Price" style="color:var(--gold2);font-family:'JetBrains Mono';font-weight:700;">₹${j.price}</td>
+        <td data-label="Status"><span class="badge ${j.status}">${j.status}</span></td>
+        <td data-label="Actions">
           <a href="/view/${j.id}" target="_blank" class="view-btn"><i data-lucide="eye" style="width:12px;height:12px;"></i> View</a>
           ${j.status==='Queued' ? `<a href="#" class="done-btn" onclick="advanceStatus(${j.id},'Printing');return false;"><i data-lucide="printer" style="width:12px;height:12px;"></i> Start</a>` : ''}
           ${j.status==='Printing' ? `<a href="#" class="done-btn" onclick="advanceStatus(${j.id},'Ready');return false;"><i data-lucide="check" style="width:12px;height:12px;"></i> Done</a>` : ''}
@@ -946,10 +1008,10 @@ function render(){
     const done = jobs.filter(j=>j.status==='Ready');
     doneBody.innerHTML = done.length ? done.map(j=>`
       <tr style="opacity:.6;">
-        <td>${(j.student_email||'').split('@')[0]}</td>
-        <td><span class="mono-tag">${j.page_size} · ${j.color_mode}</span></td>
-        <td style="font-family:'JetBrains Mono';">₹${j.price}</td>
-        <td><span class="badge Ready">Ready</span></td>
+        <td data-label="Student">${(j.student_email||'').split('@')[0]}</td>
+        <td data-label="Config"><span class="mono-tag">${j.page_size} · ${j.color_mode}</span></td>
+        <td data-label="Price" style="font-family:'JetBrains Mono';">₹${j.price}</td>
+        <td data-label="Status"><span class="badge Ready">Ready</span></td>
       </tr>`).join('') : `<tr><td colspan="4"><div class="empty-state"><i data-lucide="inbox"></i><p>No completed jobs yet.</p></div></td></tr>`;
   }
 
