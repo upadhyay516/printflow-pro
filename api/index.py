@@ -2,20 +2,27 @@ import os, time, PyPDF2, requests, tempfile
 from flask import Flask, request, render_template_string, redirect, url_for, session, jsonify, Response
 from supabase import create_client
 
+try:
+    from dotenv import load_dotenv
+    load_dotenv()  # reads .env in this folder for local runs; harmless no-op on Vercel
+except ImportError:
+    pass
+
 app = Flask(__name__)
 
-# Secrets must be set in Vercel: Project Settings -> Environment Variables.
+# Locally: values come from .env (see .env.example). On Vercel: Project Settings -> Environment Variables.
 # (No hardcoded fallback — this repo is public, so a hardcoded key is a public key.)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY")
 
 # --- CONFIGURATION ---
-SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://qsfwlyucognzoojijgul.supabase.co")
-SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFzZndseXVjb2duem9vamlqZ3VsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwNjUwNjgsImV4cCI6MjA5NjY0MTA2OH0.WeipU_k1_Rm6M97gC7LMsjbFspjVRDiPOnAHreeNATc")
+SUPABASE_URL = os.environ.get("SUPABASE_URL")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 
 if not app.secret_key or not SUPABASE_URL or not SUPABASE_KEY:
     raise RuntimeError(
-        "Missing FLASK_SECRET_KEY / SUPABASE_URL / SUPABASE_KEY environment variables. "
-        "Set them in Vercel under Project Settings > Environment Variables."
+        "Missing FLASK_SECRET_KEY / SUPABASE_URL / SUPABASE_KEY. "
+        "Locally: create a .env file (see .env.example) in this folder. "
+        "On Vercel: set them under Project Settings > Environment Variables."
     )
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
