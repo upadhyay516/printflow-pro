@@ -12,12 +12,12 @@ except ImportError:
 app = Flask(__name__)
 
 
-app.secret_key = os.environ.get("FLASK_SECRET_KEY", "d1cca308bd5845d897e3dce2a8baa1e91350fbda0f2cddcb5e627dc8510c6a69")
+app.secret_key = os.environ.get("FLASK_SECRET_KEY")
 
 
 # --- CONFIGURATION ---
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://qsfwlyucognzoojijgul.supabase.co")
-SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFzZndseXVjb2duem9vamlqZ3VsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwNjUwNjgsImV4cCI6MjA5NjY0MTA2OH0.WeipU_k1_Rm6M97gC7LMsjbFspjVRDiPOnAHreeNATc")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 
 
 SESSION_TIMEOUT_MINUTES = int(os.environ.get("SESSION_TIMEOUT_MINUTES", "10"))
