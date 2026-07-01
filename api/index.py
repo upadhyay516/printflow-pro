@@ -12,12 +12,12 @@ except ImportError:
 app = Flask(__name__)
 
 
-app.secret_key = os.environ.get("FLASK_SECRET_KEY")
+app.secret_key = os.environ.get("FLASK_SECRET_KEY", "d1cca308bd5845d897e3dce2a8baa1e91350fbda0f2cddcb5e627dc8510c6a69")
 
 
 # --- CONFIGURATION ---
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://qsfwlyucognzoojijgul.supabase.co")
-SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFzZndseXVjb2duem9vamlqZ3VsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwNjUwNjgsImV4cCI6MjA5NjY0MTA2OH0.WeipU_k1_Rm6M97gC7LMsjbFspjVRDiPOnAHreeNATc")
 
 
 SESSION_TIMEOUT_MINUTES = int(os.environ.get("SESSION_TIMEOUT_MINUTES", "10"))
@@ -505,8 +505,6 @@ HTML_TEMPLATE = """
   <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
   <nav class="sidebar" id="sidebarNav">
     <div class="logo"><span class="b">[</span><span class="n">PRINT</span><span class="a">FLOW</span><span class="b">]</span></div>
-    <div class="sys-tag mono">SYS://JIIT-NODE-04 · v2.6</div>
-
     <div class="role-toggle" style="pointer-events:none;">
       <button id="roleStudentBtn" class="active" disabled>STUDENT</button>
       <button id="roleStaffBtn" disabled>STAFF</button>
@@ -544,7 +542,7 @@ HTML_TEMPLATE = """
     <!-- ─── DASHBOARD VIEW ─── -->
     <section id="view-dashboard" class="view" style="display:none;">
       <div class="hud-strip reveal">
-        <span>NODE: <b>JIIT-04</b></span><span>PRINTERS: <b>3/4 ONLINE</b></span><span>UPTIME: <b>99.8%</b></span><span>RATE: <b>₹3/pg B·W</b> · <b>₹11/pg COLOR</b></span>
+        <span>RATE: <b>₹3/pg B·W</b> · <b>₹11/pg COLOR</b></span>
       </div>
 
       <div class="stats">
